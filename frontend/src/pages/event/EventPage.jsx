@@ -208,7 +208,7 @@ export default function EventPage() {
                     ))
                 )}
 
-                {currentUser?.role === "alumni" && (
+                {(currentUser?.role === "alumni" || currentUser?.role === "admin") && (
                     <button
                         onClick={() => setShowPopup(true)}
                         className="fixed bottom-6 right-6 bg-blue-500 text-white text-2xl px-4 py-2 rounded-full shadow-lg hover:bg-blue-600"
@@ -218,7 +218,7 @@ export default function EventPage() {
                 )}
 
                 {/* Popup for Creating Event */}
-                {showPopup && currentUser?.role === "alumni" && (
+                {showPopup && (currentUser?.role === "alumni" || currentUser?.role === "admin") && (
                     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
                         <div className="bg-white p-4 rounded-lg shadow-lg w-96">
                             <h2 className="text-lg font-bold mb-2">Create Event</h2>
