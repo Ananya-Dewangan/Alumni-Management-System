@@ -5,15 +5,16 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 import upload from "../middleware/multerMiddleware.js";
 
 import uploadOnCloudinary from "../uploadconfig.js";
-import fs from "fs"
+import fs from "fs";
 
 const router = express.Router();
 
-// Alumni creates an event
+// Alumni or Admin creates an event
 router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
     try {
-        if (req.user.role !== "alumni") {
-            return res.status(403).json({ error: "Only alumni can create events" });
+        // Allow both 'alumni' and 'admin'
+        if (req.user.role !== "alumni" && req.user.role !== "admin") {
+            return res.status(403).json({ error: "Only alumni or admin can create events" });
         }
 
         if (!req.file) {
