@@ -1,28 +1,22 @@
-import { useEffect } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react"
+import LoginForm from "@/pages/auth/Login"
+import RegisterForm from "@/pages/auth/Register"
 
-export default function Logout() {
-  const navigate = useNavigate();
+export default function AuthPage() {
 
-  useEffect(() => {
-    const logout = async () => {
-      try {
-        await axios.post(
-          "http://localhost:5000/api/auth/logout",
-          {},
-          { withCredentials: true } // ✅ include cookies
-        );
-        navigate("/auth"); // redirect after logout
-      } catch (err) {
-        console.error("Logout error:", err.response?.data || err.message);
-        alert(err.response?.data?.msg || "Error logging out");
-        navigate("/auth"); // still redirect to login even if error
-      }
-    };
+    const [isLogin, setIsLogin] = useState(true)
 
-    logout();
-  }, [navigate]);
+    const toggleForm = () => {
+        setIsLogin((prev) => !prev)
+    }
 
-  return null; // nothing to render
+    return (
+        <div >
+            {isLogin ? (
+                <LoginForm onToggle={toggleForm} />
+            ) : (
+                <RegisterForm onToggle={toggleForm} />
+            )}
+        </div>
+    )
 }

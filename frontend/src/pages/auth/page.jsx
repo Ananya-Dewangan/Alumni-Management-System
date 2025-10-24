@@ -1,13 +1,22 @@
-"use client";
-
-import { useState } from "react";
-import LoginForm from "@/pages/auth/Login";
-import RegisterForm from "@/pages/auth/Register";
+import { useState } from "react"
+import LoginForm from "@/pages/auth/Login"
+import RegisterForm from "@/pages/auth/Register"
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
 
-  const toggleForm = () => setIsLogin(prev => !prev);
+    const [isLogin, setIsLogin] = useState(true)
 
-  return <>{isLogin ? <LoginForm onToggle={toggleForm} /> : <RegisterForm onToggle={toggleForm} />}</>;
+    const toggleForm = () => {
+        setIsLogin((prev) => !prev)
+    }
+
+    return (
+        <div >
+            {isLogin ? (
+                <LoginForm onToggle={toggleForm} />
+            ) : (
+                <RegisterForm onToggle={toggleForm} />
+            )}
+        </div>
+    )
 }
