@@ -1,92 +1,69 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { Button } from "@/components/ui/button";
+"use client";
+
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export default function LoginForm({ onToggle }) {
-  const [form, setForm] = useState({ identifier: "", password: "" });
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ email: "", password: "" });
 
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    axios
-      .post(
-        "http://localhost:5000/api/auth/login",
-        { identifier: form.identifier, password: form.password },
-        { withCredentials: true }
-      )
-      .then((res) => {
-        console.log(res.data.user);
-        navigate("/profile");
-      })
-      .catch((err) => {
-        setError("Invalid username or password. Please try again.");
-
-      });
+    // TODO: Add login logic
+    alert("Login submitted!");
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-      <Card className="w-full max-w-md bg-blue-800/30 backdrop-blur-sm border-blue-600/30 shadow-2xl">
-        <CardHeader className="text-center pb-6">
-          <CardTitle className="text-3xl font-bold text-white mb-4">
-            Welcome Back!
-          </CardTitle>
-          {error && (
-            <p className="text-red-400 text-sm font-medium text-center">
-              {error}
-            </p>
-          )}
-        </CardHeader>
-        <CardContent>
-          {/* Error message */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="flex justify-center items-center min-h-screen bg-blue-900/30 backdrop-blur-sm">
+      <div className="bg-blue-800/40 border border-blue-600/50 backdrop-blur-md rounded-xl shadow-2xl max-w-md w-full p-8">
+        <h2 className="text-3xl font-bold text-white text-center mb-6">Welcome Back</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-white/80">Email</Label>
             <Input
-              type="text"
-              name="identifier"
-              placeholder="Email or Username"
-              value={form.identifier}
+              id="email"
+              name="email"
+              type="email"
+              placeholder="Enter your email"
+              value={formData.email}
               onChange={handleChange}
-              className="bg-blue-700/50 border-blue-600/50 text-white placeholder:text-blue-200 h-12"
+              className="bg-blue-700/50 border-blue-600/50 text-white placeholder:text-white/60 focus:border-coral-400"
               required
             />
-            <Input
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={handleChange}
-              className="bg-blue-700/50 border-blue-600/50 text-white placeholder:text-blue-200 h-12"
-              required
-            />
-            <Button
-              type="submit"
-              className="w-full h-12 text-white font-semibold text-lg"
-              style={{ backgroundColor: "#FF6B6B" }}
-            >
-              LOG IN
-            </Button>
-          </form>
-          <div className="flex items-center justify-center space-x-2 text-gray-600">
-            <span>Don't have an account?</span>
-            <button
-              type="button"
-              onClick={onToggle}
-              className="text-coral-400 hover:text-coral-300 underline"
-            >
-              Click here
-            </button>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-white/80">Password</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="Enter your password"
+              value={formData.password}
+              onChange={handleChange}
+              className="bg-blue-700/50 border-blue-600/50 text-white placeholder:text-white/60 focus:border-coral-400"
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-12 text-white font-semibold text-lg bg-coral-400 hover:bg-coral-300 transition-colors rounded-lg"
+          >
+            LOGIN
+          </Button>
+        </form>
+
+        <p className="mt-4 text-center text-gray-300">
+          Don't have an account?{" "}
+          <button onClick={onToggle} className="text-coral-400 hover:text-coral-300 underline">
+            Register
+          </button>
+        </p>
+      </div>
     </div>
   );
 }

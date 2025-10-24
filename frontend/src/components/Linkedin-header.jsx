@@ -81,7 +81,7 @@ export function LinkedInHeader() {
                                 </Button>
                             </Link>
 
-                            {/* Jobs */}
+                            {/* Event */}
                             <Link to="/event">
                                 <Button
                                     variant="ghost"
@@ -89,7 +89,7 @@ export function LinkedInHeader() {
                                     className="flex flex-col items-center gap-1 px-3 py-2 h-auto text-muted-foreground hover:text-foreground"
                                 >
                                     <Briefcase className="w-5 h-5" />
-                                    <span className="text-xs">Jobs</span>
+                                    <span className="text-xs">Events</span>
                                 </Button>
                             </Link>
 
