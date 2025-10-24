@@ -47,10 +47,10 @@ export function LinkedInHeader() {
                         <div className="flex items-center gap-2">
                             {/* LinkedIn Logo */}
                             <div className="bg-blue-600 text-white text-primary-foreground w-8 h-8 rounded flex items-center justify-center font-bold text-xl">
-                                CU
+                                LU
                             </div>
 
-                            <span className="text-xl">ConnUs</span>
+                            <span className="text-xl">LynkUp</span>
                         </div>
                     </Link>
 
