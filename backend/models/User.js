@@ -20,16 +20,13 @@ const userSchema = new mongoose.Schema({
   github_url: { type: String },
   twitter_url: { type: String },
   facebook_url: { type: String },
-
   aboutMe: { type: String },
   profilePic: {
     type: String,
-    default: "https://www.w3schools.com/w3images/avatar3.png" // default image URL
+    default: "https://www.w3schools.com/w3images/avatar3.png"
   },
-
-  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 }, { timestamps: true });
 
 export default mongoose.model("User", userSchema);
