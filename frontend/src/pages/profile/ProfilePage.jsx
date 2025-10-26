@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
-import Logout from "../../pages/auth/Logout"
-import { Search, ChevronDown, Facebook, Twitter } from "lucide-react"
-import { Input } from "../../components/ui/input"
-import { Card, CardContent } from "../../components/ui/card"
-import { Textarea } from "../../components/ui/textarea"
 import { useNavigate } from "react-router-dom";
+import { Facebook, Twitter } from "lucide-react";
+import { Input } from "../../components/ui/input";
+import { Card, CardContent } from "../../components/ui/card";
+import { Textarea } from "../../components/ui/textarea";
 import LinkedInLoadingScreen from "../../LinkedInLoadingScreen";
-import { LinkedInHeader } from "../../components/linkedin-header";
+import { LinkedInHeader } from "../../components/Linkedin-header";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState({
@@ -17,6 +15,7 @@ export default function ProfilePage() {
     role: "",
     firstname: "",
     lastname: "",
+    gender: "",
     bio: "",
     address: "",
     city: "",
@@ -30,37 +29,53 @@ export default function ProfilePage() {
     skills: [],
     profilePic: "",
   });
+
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
-  const [skillInput, setSkillInput] = useState("");
-
-  // Add skill on Enter
-  const [showPopup, setShowPopup] = useState(false);
+  const [showSkillPopup, setShowSkillPopup] = useState(false);
   const [newSkill, setNewSkill] = useState("");
+  const [refresh, setRefresh] = useState(false);
 
+  // Handle input changes, including gender-based default profilePic
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setProfile((prev) => ({
+      ...prev,
+      [name]: value,
+      profilePic:
+        name === "gender" &&
+        (!prev.profilePic ||
+          prev.profilePic.includes("avatar3.png") ||
+          prev.profilePic.includes("6997662.png"))
+          ? value === "female"
+            ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
+            : "https://www.w3schools.com/w3images/avatar3.png"
+          : prev.profilePic,
+    }));
+  };
+
+  // Add skill
   const handleAddSkill = () => {
-    if (newSkill.trim() !== "") {
-      const updatedSkills = [...profile.skills, newSkill.trim()];
-
+    if (newSkill.trim() !== "" && !profile.skills.includes(newSkill.trim())) {
       setProfile((prev) => ({
         ...prev,
-        skills: updatedSkills,
+        skills: [...prev.skills, newSkill.trim()],
       }));
-
       setNewSkill("");
-      setShowPopup(false); // close popup
+      setShowSkillPopup(false);
     }
   };
 
-  // Handle text changes
-  const handleChange = (e) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
+  // Delete skill
+  const handleDeleteSkill = (index) => {
+    setProfile((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((_, i) => i !== index),
+    }));
   };
 
-  const [refresh, setRefresh] = useState(false);
-
-  // Handle image selection
+  // Update profile photo
   const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -75,42 +90,63 @@ export default function ProfilePage() {
         formData,
         { withCredentials: true }
       );
-      setProfile(res.data);
-      setRefresh((prev) => !prev); 
+
+      setProfile((prev) => ({
+        ...prev,
+        profilePic: res.data.profilePic || prev.profilePic,
+      }));
     } catch (err) {
       console.error(err);
       alert("Error updating photo");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handle details selection
+  // Update profile details
   const handleDetailsSubmit = async (e) => {
     e.preventDefault();
     try {
       setLoading(true);
       const res = await axios.put(
         "http://localhost:5000/api/profile/details",
-        {
-          profile,
-        },
+        profile,
         { withCredentials: true }
       );
+
+      const updatedData = res.data;
+
+      const profilePic =
+        !updatedData.profilePic ||
+        updatedData.profilePic.includes("avatar3.png") ||
+        updatedData.profilePic.includes("6997662.png")
+          ? profile.gender === "female"
+            ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
+            : "https://www.w3schools.com/w3images/avatar3.png"
+          : updatedData.profilePic;
+
       setProfile({
-        ...res.data,
-        skills: Array.isArray(res.data.skills)
-          ? res.data.skills
-          : res.data.skills
-            ? res.data.skills.split(",").map((s) => s.trim())
-            : [],
+        ...updatedData,
+        gender: profile.gender,
+        skills: Array.isArray(updatedData.skills)
+          ? updatedData.skills
+          : updatedData.skills
+          ? updatedData.skills.split(",").map((s) => s.trim())
+          : [],
+        profilePic,
       });
-      setRefresh((prev) => !prev); 
+
+      alert("Profile updated successfully!");
+      setRefresh((prev) => !prev);
     } catch (err) {
       console.error(err);
       alert("Error updating details");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Fetch profile on load
+  // Fetch profile
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -119,21 +155,30 @@ export default function ProfilePage() {
           withCredentials: true,
         });
 
-        console.log(res.data);
         if (!res.data || !res.data.username) {
           navigate("/auth");
           return;
         }
-        setProfile({
-          ...res.data,
-          skills: Array.isArray(res.data.skills)
-            ? res.data.skills
-            : res.data.skills
-              ? res.data.skills.split(",").map((s) => s.trim())
-              : [],
-        });
+
+        const profileData = res.data;
+
+        setProfile((prev) => ({
+          ...prev,
+          ...profileData,
+          gender: profileData.gender || prev.gender || "",
+          skills: Array.isArray(profileData.skills)
+            ? profileData.skills
+            : profileData.skills
+            ? profileData.skills.split(",").map((s) => s.trim())
+            : [],
+          profilePic:
+            profileData.profilePic ||
+            (profileData.gender === "female"
+              ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
+              : "https://www.w3schools.com/w3images/avatar3.png"),
+        }));
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching profile:", err);
         navigate("/auth");
       } finally {
         setLoading(false);
@@ -142,68 +187,100 @@ export default function ProfilePage() {
     fetchProfile();
   }, [navigate, refresh]);
 
-
-
-
-
-  if (loading) {
-    return <LinkedInLoadingScreen />;
-  }
-
+  if (loading) return <LinkedInLoadingScreen />;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <LinkedInHeader />
-
-      {/* Main Content */}
       <form onSubmit={handleDetailsSubmit}>
         <div className="p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Edit Profile Form - Left Side */}
+            {/* LEFT SECTION */}
             <div className="lg:col-span-2">
               <Card className="shadow-sm">
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-800 mb-6">Edit Profile</h2>
+                  <h2 className="text-xl font-semibold text-gray-800 mb-6">
+                    Edit Profile
+                  </h2>
 
+                  {/* USERNAME + EMAIL */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-2">USERNAME</label>
-                      <Input value={profile.username} readOnly className="bg-gray-50" disable />
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        USERNAME
+                      </label>
+                      <Input
+                        value={profile.username}
+                        readOnly
+                        className="bg-gray-100"
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-2">EMAIL ADDRESS</label>
-                      <Input value={profile.email} disable readOnly />
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        EMAIL ADDRESS
+                      </label>
+                      <Input
+                        value={profile.email}
+                        readOnly
+                        className="bg-gray-100"
+                      />
                     </div>
                   </div>
 
-                  <label className="block text-sm font-medium text-gray-500 mb-2">SKILLS</label>
+                  {/* GENDER */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-500 mb-2">
+                      GENDER
+                    </label>
+                    <select
+                      name="gender"
+                      value={profile.gender || ""}
+                      onChange={handleChange}
+                      className="w-full border rounded p-2"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </div>
+
+                  {/* SKILLS */}
+                  <label className="block text-sm font-medium text-gray-500 mb-2">
+                    SKILLS
+                  </label>
                   <div className="block w-full p-2 my-2 text-black border rounded">
-                    {/* Existing Skills */}
                     <div className="flex flex-wrap gap-2 mb-2">
                       {profile.skills.map((skill, index) => (
-                        <span
+                        <div
                           key={index}
-                          className="bg-blue-500 text-white px-2 py-1 rounded-full text-sm"
+                          className="flex items-center bg-blue-500 text-white px-2 py-1 rounded-full text-sm gap-1"
                         >
-                          {skill}
-                        </span>
+                          <span>{skill}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSkill(index)}
+                            className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center hover:bg-gray-200"
+                          >
+                            ×
+                          </button>
+                        </div>
                       ))}
-
-                      {/* + Icon */}
                       <button
                         type="button"
-                        onClick={() => setShowPopup(true)}
+                        onClick={() => setShowSkillPopup(true)}
                         className="bg-gray-200 text-black px-2 py-1 rounded-full text-sm hover:bg-gray-300"
                       >
                         +
                       </button>
                     </div>
-                    {/* Popup for adding new skill */}
-                    {showPopup && (
+
+                    {/* Skill Popup */}
+                    {showSkillPopup && (
                       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
                         <div className="bg-white p-4 rounded-lg shadow-lg w-80">
-                          <h2 className="text-lg font-bold mb-2">Add a new skill</h2>
+                          <h2 className="text-lg font-bold mb-2">
+                            Add a new skill
+                          </h2>
                           <input
                             type="text"
                             value={newSkill}
@@ -213,7 +290,7 @@ export default function ProfilePage() {
                           />
                           <div className="flex justify-end gap-2">
                             <button
-                              onClick={() => setShowPopup(false)}
+                              onClick={() => setShowSkillPopup(false)}
                               className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
                             >
                               Cancel
@@ -230,60 +307,118 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-2">FIRST NAME</label>
-                      <Input value={profile.firstname}
-                        name="firstname"
-                        onChange={handleChange} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-2">LAST NAME</label>
-                      <Input value={profile.lastname}
-                        name="lastname"
-                        onChange={handleChange} />
-                    </div>
-                  </div>
-
+                  {/* ADDRESS */}
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-500 mb-2">ADDRESS</label>
-                    <Input value={profile.address}
+                    <label className="block text-sm font-medium text-gray-500 mb-2">
+                      ADDRESS
+                    </label>
+                    <Input
                       name="address"
-                      onChange={handleChange} />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-2">CITY</label>
-                      <Input value={profile.city}
-                        name="city"
-                        onChange={handleChange} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-2">COUNTRY</label>
-                      <Input value={profile.country}
-                        name="country"
-                        onChange={handleChange} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-2">POSTAL CODE</label>
-                      <Input placeholder="ZIP Code" className="text-gray-400"
-                        name="zipcode"
-                        value={profile.zipcode}
-                        onChange={handleChange} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-2">ABOUT ME</label>
-                    <Textarea
-                      value={profile.bio}
-                      placeholder="I am from XYZ batch."
-                      className="min-h-[100px] resize-none"
-                      name="bio"
+                      value={profile.address || ""}
                       onChange={handleChange}
+                      placeholder="Enter your address"
                     />
                   </div>
+
+                  {/* CITY / COUNTRY / ZIP */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        CITY
+                      </label>
+                      <Input
+                        name="city"
+                        value={profile.city || ""}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        COUNTRY
+                      </label>
+                      <Input
+                        name="country"
+                        value={profile.country || ""}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        POSTAL CODE
+                      </label>
+                      <Input
+                        name="zipcode"
+                        value={profile.zipcode || ""}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  {/* SOCIAL LINKS */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        LinkedIn URL
+                      </label>
+                      <Input
+                        name="linkedin_url"
+                        value={profile.linkedin_url || ""}
+                        onChange={handleChange}
+                        placeholder="https://linkedin.com/in/yourname"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        GitHub URL
+                      </label>
+                      <Input
+                        name="github_url"
+                        value={profile.github_url || ""}
+                        onChange={handleChange}
+                        placeholder="https://github.com/yourname"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        Twitter URL
+                      </label>
+                      <Input
+                        name="twitter_url"
+                        value={profile.twitter_url || ""}
+                        onChange={handleChange}
+                        placeholder="https://twitter.com/yourhandle"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        Facebook URL
+                      </label>
+                      <Input
+                        name="facebook_url"
+                        value={profile.facebook_url || ""}
+                        onChange={handleChange}
+                        placeholder="https://facebook.com/yourprofile"
+                      />
+                    </div>
+                  </div>
+
+                  {/* BIO */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-2">
+                      ABOUT ME
+                    </label>
+                    <Textarea
+                      name="bio"
+                      value={profile.bio || ""}
+                      onChange={handleChange}
+                      placeholder="I am from XYZ batch, currently working as an SDE at ABC Firm"
+                      className="min-h-[100px] resize-none"
+                    />
+                  </div>
+
                   <button
                     type="submit"
                     className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 mt-4 rounded"
@@ -294,32 +429,25 @@ export default function ProfilePage() {
               </Card>
             </div>
 
-            {/* Profile Card - Right Side */}
+            {/* RIGHT SECTION */}
             <div className="lg:col-span-1">
               <Card className="shadow-sm overflow-hidden">
-                {/* Banner Image */}
                 <div
                   className="h-32 bg-cover bg-center"
                   style={{
                     backgroundImage: `url('/city-skyline-urban-background.jpg')`,
                   }}
                 />
-
                 <CardContent className="p-6 text-center relative">
-                  {/* Profile Picture */}
                   <div className="absolute -top-12 left-1/2 transform -translate-x-1/2">
                     <img
-                      src={
-                        profile.profilePic
-                          ? profile.profilePic
-                          : "https://www.w3schools.com/w3images/avatar3.png"
-                      }
+                      src={profile.profilePic}
                       alt="Profile"
-                      className="w-32 h-32 rounded-full cursor-pointer"
-                      onClick={() => document.getElementById("fileInput").click()}
+                      className="w-32 h-32 rounded-full cursor-pointer object-cover"
+                      onClick={() =>
+                        document.getElementById("fileInput").click()
+                      }
                     />
-
-
                     <input
                       id="fileInput"
                       type="file"
@@ -330,17 +458,20 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="mt-14">
-                    <h3 className="text-xl font-semibold text-blue-500 mb-1">{profile.username}</h3>
-                    <p className="text-gray-600 mb-4">{profile.firstname} {profile.lastname}</p>
+                    <h3 className="text-xl font-semibold text-blue-500 mb-1">
+                      {profile.username}
+                    </h3>
+                    <p className="text-gray-600 mb-1">
+                      {profile.firstname} {profile.lastname}
+                    </p>
                     <p className="text-gray-600 mb-4">{profile.role}</p>
-                    
+
                     <div className="text-sm text-gray-700 text-left mb-6">
                       {profile.bio || "No bio available."}
                     </div>
 
-                    {/* Social Media Icons */}
+                    {/* SOCIAL ICONS */}
                     <div className="flex justify-center gap-4">
-
                       {profile.facebook_url && (
                         <a
                           href={profile.facebook_url}
@@ -353,7 +484,6 @@ export default function ProfilePage() {
                         </a>
                       )}
 
-                      {/* Twitter */}
                       {profile.twitter_url && (
                         <a
                           href={profile.twitter_url}
@@ -366,7 +496,6 @@ export default function ProfilePage() {
                         </a>
                       )}
 
-                      {/* Google+ */}
                       {profile.github_url && (
                         <a
                           href={profile.github_url}
@@ -374,15 +503,16 @@ export default function ProfilePage() {
                           rel="noopener noreferrer"
                         >
                           <div className="w-8 h-8 bg-gray-300 rounded flex items-center justify-center hover:bg-gray-400 cursor-pointer">
-                            <img src="github-mark.svg" alt="GitHub" className="w-4 h-4" />
+                            <img
+                              src="github-mark.svg"
+                              alt="GitHub"
+                              className="w-4 h-4"
+                            />
                           </div>
                         </a>
                       )}
-
                     </div>
                   </div>
-
-                  {/* Settings Icon */}
                 </CardContent>
               </Card>
             </div>
@@ -390,5 +520,5 @@ export default function ProfilePage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

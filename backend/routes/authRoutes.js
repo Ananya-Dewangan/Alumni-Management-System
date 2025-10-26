@@ -10,21 +10,25 @@ const router = express.Router();
 router.post("/register", async (req, res) => {
   const { username, email, password, batch, role } = req.body;
   try {
-    if (await User.findOne({ email })) return res.status(400).json({ msg: "Email already exists" });
-    if (await User.findOne({ username })) return res.status(400).json({ msg: "Username already exists" });
+    if (await User.findOne({ email }))
+      return res.status(400).json({ msg: "Email already exists" });
+    if (await User.findOne({ username }))
+      return res.status(400).json({ msg: "Username already exists" });
 
     const hashed = await bcrypt.hash(password, 10);
 
-    const newUser = new User({ 
-      username, 
-      email, 
-      password: hashed, 
-      graduation_year: batch, 
-      role 
+    const newUser = new User({
+      username,
+      email,
+      password: hashed,
+      graduation_year: batch,
+      role,
     });
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
 
     res.cookie("token", token, { httpOnly: true, secure: false, sameSite: "lax" });
 
@@ -40,12 +44,17 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { identifier, password } = req.body;
   try {
-    const user = await User.findOne({ $or: [{ email: identifier }, { username: identifier }] });
+    const user = await User.findOne({
+      $or: [{ email: identifier }, { username: identifier }],
+    });
     if (!user) return res.status(400).json({ msg: "User not found" });
 
-    if (!await bcrypt.compare(password, user.password)) return res.status(400).json({ msg: "Invalid credentials" });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
     res.cookie("token", token, { httpOnly: true, secure: false, sameSite: "lax" });
 
     const { password: pw, ...userData } = user._doc;
@@ -65,6 +74,20 @@ router.post("/logout", (req, res) => {
 // Get current logged-in user
 router.get("/me", authMiddleware, (req, res) => {
   res.json(req.user);
+});
+
+// Get a user's public profile by ID (no auth required)
+router.get("/profile/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select(
+      "-password -__v" // remove password and version
+    );
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    res.json(user);
+  } catch (err) {
+    console.error("Error fetching user profile:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
 });
 
 export default router;

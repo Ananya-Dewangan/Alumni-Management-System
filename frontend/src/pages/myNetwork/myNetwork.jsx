@@ -57,7 +57,7 @@ export default function MyNetwork() {
 
   if (loading) return <LinkedInLoadingScreen />;
 
-  // ✅ Fixed string interpolation here
+  // Filter users by name, username, or role
   const filteredUsers = allUsers.filter((user) => {
     const fullName = `${user.firstname || ""} ${user.lastname || ""}`.toLowerCase();
     return (
@@ -95,20 +95,40 @@ export default function MyNetwork() {
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-3">
                       <img
-                        src={user.profilePic || "https://www.w3schools.com/w3images/avatar3.png"}
+                        src={
+                          user.profilePic ||
+                          "https://www.w3schools.com/w3images/avatar3.png"
+                        }
                         alt={user.username}
                         className="w-12 h-12 rounded-full object-cover"
                       />
                       <div>
                         <h3 className="font-semibold">
-                          {user.firstname ? `${user.firstname} ${user.lastname}` : user.username}
+                          {user.firstname
+                            ? `${user.firstname} ${user.lastname}`
+                            : user.username}
                         </h3>
-                        <p className="text-sm text-muted-foreground">{user.role}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {user.role}
+                        </p>
                       </div>
                     </div>
-                    <Button variant="outline" onClick={() => setSelectedAlumni(user)}>
-                      Message
-                    </Button>
+
+                    {/* Message + View Profile Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedAlumni(user)}
+                      >
+                        Message
+                      </Button>
+                      <Button
+                        className="border border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors duration-200"
+                        onClick={() => navigate(`/profile/${user._id}`)}
+                      >
+                        View Profile
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
