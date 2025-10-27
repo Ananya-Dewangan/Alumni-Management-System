@@ -6,7 +6,7 @@ import { Input } from "../../components/ui/input";
 import { Card, CardContent } from "../../components/ui/card";
 import { Textarea } from "../../components/ui/textarea";
 import LinkedInLoadingScreen from "../../LinkedInLoadingScreen";
-import { LinkedInHeader } from "../../components/Linkedin-header";
+import { LinkedInHeader } from "../../components/linkedin-header";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState({
@@ -16,6 +16,9 @@ export default function ProfilePage() {
     firstname: "",
     lastname: "",
     gender: "",
+    department: "",
+    company: "",
+    jobTitle: "",
     bio: "",
     address: "",
     city: "",
@@ -39,7 +42,6 @@ export default function ProfilePage() {
   // Handle input changes, including gender-based default profilePic
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setProfile((prev) => ({
       ...prev,
       [name]: value,
@@ -209,23 +211,84 @@ export default function ProfilePage() {
                       <label className="block text-sm font-medium text-gray-500 mb-2">
                         USERNAME
                       </label>
-                      <Input
-                        value={profile.username}
-                        readOnly
-                        className="bg-gray-100"
-                      />
+                      <Input value={profile.username} readOnly className="bg-gray-100" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-2">
                         EMAIL ADDRESS
                       </label>
+                      <Input value={profile.email} readOnly className="bg-gray-100" />
+                    </div>
+                  </div>
+
+                  {/* FIRST NAME + LAST NAME */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        FIRST NAME
+                      </label>
                       <Input
-                        value={profile.email}
-                        readOnly
-                        className="bg-gray-100"
+                        name="firstname"
+                        value={profile.firstname || ""}
+                        onChange={handleChange}
+                        placeholder="Enter your first name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        LAST NAME
+                      </label>
+                      <Input
+                        name="lastname"
+                        value={profile.lastname || ""}
+                        onChange={handleChange}
+                        placeholder="Enter your last name"
                       />
                     </div>
                   </div>
+
+                  {/* DEPARTMENT (common for both Student & Alumni) */}
+                  {(profile.role === "student" || profile.role === "alumni") && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-500 mb-2">
+                        DEPARTMENT
+                      </label>
+                      <Input
+                        name="department"
+                        value={profile.department || ""}
+                        onChange={handleChange}
+                        placeholder="Enter your department"
+                      />
+                    </div>
+                  )}
+
+                  {/* COMPANY + JOB TITLE (only for Alumni) */}
+                  {profile.role === "alumni" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-2">
+                          COMPANY
+                        </label>
+                        <Input
+                          name="company"
+                          value={profile.company || ""}
+                          onChange={handleChange}
+                          placeholder="Enter your company name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-2">
+                          JOB TITLE
+                        </label>
+                        <Input
+                          name="jobTitle"
+                          value={profile.jobTitle || ""}
+                          onChange={handleChange}
+                          placeholder="Enter your job title"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* GENDER */}
                   <div className="mb-4">
@@ -278,9 +341,7 @@ export default function ProfilePage() {
                     {showSkillPopup && (
                       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
                         <div className="bg-white p-4 rounded-lg shadow-lg w-80">
-                          <h2 className="text-lg font-bold mb-2">
-                            Add a new skill
-                          </h2>
+                          <h2 className="text-lg font-bold mb-2">Add a new skill</h2>
                           <input
                             type="text"
                             value={newSkill}
@@ -435,7 +496,7 @@ export default function ProfilePage() {
                 <div
                   className="h-32 bg-cover bg-center"
                   style={{
-                    backgroundImage: `url('/city-skyline-urban-background.jpg')`,
+                    backgroundImage: "url('/city-skyline-urban-background.jpg')",
                   }}
                 />
                 <CardContent className="p-6 text-center relative">
@@ -464,7 +525,22 @@ export default function ProfilePage() {
                     <p className="text-gray-600 mb-1">
                       {profile.firstname} {profile.lastname}
                     </p>
-                    <p className="text-gray-600 mb-4">{profile.role}</p>
+                    <p className="text-gray-600 mb-1">
+                      {profile.department}
+                    </p>
+                    {profile.role === "alumni" && (
+                      <>
+                        <p className="text-gray-600">{profile.company}</p>
+                        <p className="text-gray-600 mb-4">
+                          {profile.jobTitle}
+                        </p>
+                      </>
+                    )}
+                    <p className="text-gray-600 mb-4">
+                      {profile.role
+                        ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1)
+                        : ""}
+                    </p>
 
                     <div className="text-sm text-gray-700 text-left mb-6">
                       {profile.bio || "No bio available."}
