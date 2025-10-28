@@ -1,7 +1,13 @@
-// utils/createNotification.js
 import Notification from "../models/Notification.js";
 
-export const createNotification = async ({ recipient, sender, type, postId = null, text }) => {
+export const createNotification = async ({
+  recipient,
+  sender,
+  type,
+  postId = null,
+  text,
+  io = null,
+}) => {
   try {
     if (recipient.toString() === sender.toString()) return; // don't notify self
 
@@ -14,6 +20,11 @@ export const createNotification = async ({ recipient, sender, type, postId = nul
     });
 
     await newNotif.save();
+
+    // 🔹 Emit real-time notification if io available
+    if (io) {
+      io.to(recipient.toString()).emit("newNotification", { message: text });
+    }
   } catch (error) {
     console.error("Error creating notification:", error);
   }

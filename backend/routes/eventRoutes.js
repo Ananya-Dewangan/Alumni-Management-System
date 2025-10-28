@@ -1,16 +1,19 @@
+// routes/eventRoutes.js
 import express from "express";
 import Event from "../models/Event.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import upload from "../middleware/multerMiddleware.js";
 import uploadOnCloudinary from "../uploadconfig.js";
 import fs from "fs";
+import Notification from "../models/Notification.js";
+import User from "../models/User.js";
 
 const router = express.Router();
 
 // Alumni or Admin creates an event
 router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
   try {
-    // Allow both 'alumni' and 'admin'
+    // Allow both alumni and admin
     if (req.user.role !== "alumni" && req.user.role !== "admin") {
       return res.status(403).json({ error: "Only alumni or admin can create events" });
     }
@@ -23,7 +26,7 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
     const cloudRes = await uploadOnCloudinary(req.file.path);
     if (!cloudRes) return res.status(500).json({ error: "Cloudinary upload failed" });
 
-    // Delete the local file after upload
+    // Delete local file after upload
     fs.unlinkSync(req.file.path);
 
     const { title, description, date, seats } = req.body;
@@ -38,8 +41,31 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
     });
 
     await event.save();
+
+    // ✅ Create Notifications for all users
+    const allUsers = await User.find({ _id: { $ne: req.user._id } });
+    const notifications = allUsers.map((user) => ({
+      recipient: user._id,
+      sender: req.user._id,
+      type: "event",
+      text: `New event "${title}" has been created by ${req.user.username}`,
+    }));
+
+    await Notification.insertMany(notifications);
+
+    // ✅ Send real-time notifications using Socket.IO
+    const io = req.app.get("io");
+    allUsers.forEach((user) => {
+      io.to(user._id.toString()).emit("notification", {
+        type: "event",
+        title,
+        message: `New event "${title}" created by ${req.user.username}`,
+      });
+    });
+
     res.json(event);
   } catch (err) {
+    console.error("Error creating event:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -55,9 +81,10 @@ router.get("/", authMiddleware, async (req, res) => {
 // Student participates
 router.post("/:id/participate", authMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== "student") {
-      return res.status(403).json({ error: "Only students can participate" });
-    }
+    if (req.user.role !== "student" && req.user.role !== "alumni") {
+  return res.status(403).json({ error: "Only students or alumni can participate" });
+}
+
 
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ error: "Event not found" });
@@ -96,7 +123,7 @@ router.post("/:id/cancel", authMiddleware, async (req, res) => {
   }
 });
 
-// ✅ Delete an event (only creator or admin can delete)
+// Delete an event
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
@@ -105,7 +132,6 @@ router.delete("/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    // Only the creator or admin can delete the event
     if (req.user.role !== "admin" && event.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "You are not authorized to delete this event" });
     }
@@ -117,17 +143,15 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// ✅ Get participants of a specific event (only creator or admin)
+// Get participants (only creator or admin)
 router.get("/:id/participants", authMiddleware, async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id)
-      .populate("participants", "username email role");
+    const event = await Event.findById(req.params.id).populate("participants", "username email role");
 
     if (!event) {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    // Only creator or admin can view participant details
     if (req.user.role !== "admin" && event.createdBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: "You are not authorized to view participants" });
     }

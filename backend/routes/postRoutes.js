@@ -1,6 +1,7 @@
 import express from "express";
 import fs from "fs";
 import Post from "../models/Post.js";
+import User from "../models/User.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { alumniOnly } from "../middleware/alumniMiddleware.js";
 import upload from "../middleware/multerMiddleware.js";
@@ -9,7 +10,9 @@ import { createNotification } from "../utils/createNotification.js";
 
 const router = express.Router();
 
-// 📌 Get all posts
+/* -----------------------------------------------------------
+   📌 GET all posts
+----------------------------------------------------------- */
 router.get("/", async (req, res) => {
   try {
     const posts = await Post.find()
@@ -24,26 +27,61 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 📌 Create new post (Alumni only)
+/* -----------------------------------------------------------
+   📌 CREATE new post (Alumni only)
+----------------------------------------------------------- */
 router.post("/", authMiddleware, alumniOnly, upload.single("image"), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: "Image is required" });
+    let imageUrl = null;
+
+    // ✅ Upload image if provided
+    if (req.file) {
+      try {
+        const cloudRes = await uploadOnCloudinary(req.file.path);
+        if (cloudRes) {
+          imageUrl = cloudRes.secure_url;
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (uploadErr) {
+        console.error("Cloudinary upload failed:", uploadErr);
+        return res.status(500).json({ message: "Image upload failed" });
+      }
     }
 
-    const cloudRes = await uploadOnCloudinary(req.file.path);
-    if (!cloudRes) return res.status(500).json({ error: "Cloudinary upload failed" });
-    fs.unlinkSync(req.file.path);
-
+    // ✅ Create new post
     const newPost = new Post({
       author: req.user._id,
       title: req.body.title,
       content: req.body.content,
-      image_url: cloudRes.secure_url,
+      image_url: imageUrl,
     });
 
     const savedPost = await newPost.save();
     await savedPost.populate("author", "username profilePic role");
+
+    // ✅ Notify followers of the author
+    const author = await User.findById(req.user._id).populate("followers", "_id username");
+    if (author && author.followers.length > 0) {
+      const notifications = author.followers.map((follower) =>
+        createNotification({
+          recipient: follower._id,
+          sender: req.user._id,
+          type: "post",
+          postId: savedPost._id,
+          text: `${req.user.username} posted a new update.`,
+        })
+      );
+
+      await Promise.all(notifications);
+
+      // 🔹 Emit socket event to followers
+      const io = req.app.get("io");
+      author.followers.forEach((f) => {
+        io.to(f._id.toString()).emit("newNotification", {
+          message: `${req.user.username} posted a new update.`,
+        });
+      });
+    }
 
     res.status(201).json(savedPost);
   } catch (err) {
@@ -52,7 +90,9 @@ router.post("/", authMiddleware, alumniOnly, upload.single("image"), async (req,
   }
 });
 
-// 📌 Like or Unlike a post
+/* -----------------------------------------------------------
+   📌 LIKE / UNLIKE post
+----------------------------------------------------------- */
 router.put("/like/:postId", authMiddleware, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId).populate("author", "username");
@@ -64,6 +104,7 @@ router.put("/like/:postId", authMiddleware, async (req, res) => {
     if (index === -1) {
       post.likes.push(req.user._id);
 
+      // ✅ Notify post author (not self)
       if (post.author._id.toString() !== userId) {
         await createNotification({
           recipient: post.author._id,
@@ -74,7 +115,7 @@ router.put("/like/:postId", authMiddleware, async (req, res) => {
         });
       }
     } else {
-      post.likes.splice(index, 1);
+      post.likes.splice(index, 1); // Unlike
     }
 
     await post.save();
@@ -85,7 +126,9 @@ router.put("/like/:postId", authMiddleware, async (req, res) => {
   }
 });
 
-// 📌 Add a comment or reply
+/* -----------------------------------------------------------
+   📌 ADD comment or reply
+----------------------------------------------------------- */
 router.post("/comment/:postId", authMiddleware, async (req, res) => {
   try {
     const { text, parentCommentId } = req.body;
@@ -152,7 +195,9 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
   }
 });
 
-// 📌 Get comments with pagination
+/* -----------------------------------------------------------
+   📌 GET comments with pagination
+----------------------------------------------------------- */
 router.get("/comment/:postId", authMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 5 } = req.query;
@@ -164,7 +209,7 @@ router.get("/comment/:postId", authMiddleware, async (req, res) => {
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     const sortedComments = [...post.comments].sort(
-      (a, b) => b.created_at - a.created_at
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
 
     const startIndex = (page - 1) * limit;

@@ -25,7 +25,7 @@ export default function LoginForm({ onToggle }) {
       )
       .then((res) => {
         console.log(res.data.user);
-        navigate("/profile");
+        navigate("/home");
       })
       .catch((err) => {
         setError("Invalid username or password. Please try again.");

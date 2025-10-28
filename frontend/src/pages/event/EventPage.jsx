@@ -255,22 +255,23 @@ export default function EventPage() {
                   <span>{event.participants.length}</span>
                 </div>
 
-                {currentUser?.role === "student" &&
-                  (event.participants.some((p) => p._id === currentUser._id) ? (
-                    <button
-                      onClick={() => cancelParticipation(event._id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-xs"
-                    >
-                      Cancel
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => participate(event._id)}
-                      className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-xs"
-                    >
-                      Participate
-                    </button>
-                  ))}
+                {(currentUser?.role === "student" || currentUser?.role === "alumni") &&
+  (event.participants.some((p) => p._id === currentUser._id) ? (
+    <button
+      onClick={() => cancelParticipation(event._id)}
+      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-xs"
+    >
+      Cancel
+    </button>
+  ) : (
+    <button
+      onClick={() => participate(event._id)}
+      className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-xs"
+    >
+      Participate
+    </button>
+  ))}
+
               </div>
 
               {/* ✅ Admin/Creator Buttons */}

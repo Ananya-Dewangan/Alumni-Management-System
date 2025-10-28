@@ -28,7 +28,6 @@ export function LinkedInHeader() {
   useEffect(() => {
     fetchNotifCount();
 
-    // ✅ Listen for new notifications
     socket.on("newNotification", () => {
       fetchNotifCount();
     });
@@ -49,11 +48,14 @@ export function LinkedInHeader() {
   const handleLogout = async () => {
     try {
       await axios.post("http://localhost:5000/api/auth/logout", {}, { withCredentials: true });
-      navigate("/auth", { replace: true }); // 🔁 Redirect to your login/register page
+      navigate("/auth", { replace: true });
     } catch (err) {
       console.error("Logout failed:", err);
     }
   };
+
+  // 🟦 Helper to check active route
+  const isActive = (path) => location.pathname.startsWith(path);
 
   return (
     <header className="bg-white border-b sticky top-0 z-50">
@@ -65,7 +67,7 @@ export function LinkedInHeader() {
               <div className="bg-blue-600 text-white w-8 h-8 rounded flex items-center justify-center font-bold text-xl">
                 LU
               </div>
-              <span className="text-xl">LynkUp</span>
+              <span className="text-xl font-semibold">LynkUp</span>
             </div>
           </Link>
 
@@ -75,7 +77,11 @@ export function LinkedInHeader() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex flex-col items-center px-3"
+                className={`flex flex-col items-center px-3 ${
+                  isActive("/home")
+                    ? "bg-blue-100 text-blue-600"
+                    : "hover:bg-blue-50 text-gray-700"
+                }`}
               >
                 <Home className="w-5 h-5" />
                 <span className="text-xs">Home</span>
@@ -86,7 +92,11 @@ export function LinkedInHeader() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex flex-col items-center px-3"
+                className={`flex flex-col items-center px-3 ${
+                  isActive("/network")
+                    ? "bg-blue-100 text-blue-600"
+                    : "hover:bg-blue-50 text-gray-700"
+                }`}
               >
                 <Users className="w-5 h-5" />
                 <span className="text-xs">My Network</span>
@@ -97,7 +107,11 @@ export function LinkedInHeader() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex flex-col items-center px-3"
+                className={`flex flex-col items-center px-3 ${
+                  isActive("/event")
+                    ? "bg-blue-100 text-blue-600"
+                    : "hover:bg-blue-50 text-gray-700"
+                }`}
               >
                 <Briefcase className="w-5 h-5" />
                 <span className="text-xs">Events</span>
@@ -108,11 +122,15 @@ export function LinkedInHeader() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex flex-col items-center px-3 relative"
+                className={`flex flex-col items-center px-3 relative ${
+                  isActive("/notifications")
+                    ? "bg-blue-100 text-blue-600"
+                    : "hover:bg-blue-50 text-gray-700"
+                }`}
               >
                 <Bell className="w-5 h-5" />
                 <span className="text-xs">Notifications</span>
-                {notifCount > 0 && (
+                {notifCount > 0 && !isActive("/notifications") && (
                   <Badge className="absolute -top-0 -right-1 bg-red-500 text-white text-xs h-5 w-5 flex items-center justify-center rounded-full">
                     {notifCount}
                   </Badge>
@@ -124,7 +142,11 @@ export function LinkedInHeader() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex flex-col items-center px-3"
+                className={`flex flex-col items-center px-3 ${
+                  isActive("/profile")
+                    ? "bg-blue-100 text-blue-600"
+                    : "hover:bg-blue-50 text-gray-700"
+                }`}
               >
                 <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
                   <User className="w-4 h-4" />
