@@ -4,6 +4,9 @@ import dotenv from "dotenv";
 import http from "http";
 import { Server } from "socket.io";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import { connectDB } from "./config.js";
 import authRoutes from "./routes/authRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
@@ -11,18 +14,17 @@ import postRoutes from "./routes/postRoutes.js";
 import followRoutes from "./routes/followRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
-import path from "path";
-import { fileURLToPath } from "url";
+import notificationRoutes from "./routes/notificationRoutes.js";
+
 import Message from "./models/Message.js";
 import Notification from "./models/Notification.js";
-import notificationRoutes from "./routes/notificationRoutes.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 dotenv.config();
 connectDB();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
@@ -45,7 +47,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Routes
+// ✅ API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/posts", postRoutes);
@@ -54,23 +56,23 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/events", eventRoutes);
 
-// ✅ Real-time Socket.IO events
+// ✅ Socket.IO Events
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
-  // Join personal room (for notifications)
+  // Join personal notification room
   socket.on("join_user", (userId) => {
     socket.join(userId);
-    console.log(`User ${userId} joined personal room`);
+    console.log(`User ${userId} joined their personal room`);
   });
 
-  // Join chat room
+  // Join specific chat room
   socket.on("join_chat", (chatId) => {
     socket.join(chatId);
-    console.log(`Socket ${socket.id} joined chat ${chatId}`);
+    console.log(`Socket ${socket.id} joined chat room ${chatId}`);
   });
 
-  // Handle chat messages
+  // 💬 Handle chat messages
   socket.on("send_message", async (data) => {
     try {
       const { chatId, senderId, senderName, text, recipientId } = data;
@@ -80,51 +82,49 @@ io.on("connection", (socket) => {
         return;
       }
 
-      const message = {
-        chatId,
-        sender: senderId,
-        text,
-        createdAt: new Date(),
-      };
-
       // 💾 Save message in DB
-      await Message.create({
+      const savedMessage = await Message.create({
         chat: chatId,
         sender: senderId,
         text,
       });
 
-      // 📩 Broadcast to chat participants
-      io.to(chatId).emit("receive_message", message);
-
-      // 🔔 Create & send notification to recipient
-      const notif = new Notification({
-        recipient: recipientId,
-        sender: senderId,
-        chatId,
-        text,
-      });
-      await notif.save();
-
-      // Real-time notification emit
-      io.to(recipientId.toString()).emit("notification", {
+      // 📩 Emit message to all in the chat
+      io.to(chatId).emit("receive_message", {
         chatId,
         senderId,
         senderName,
         text,
+        createdAt: savedMessage.createdAt,
       });
 
-      io.to(recipientId.toString()).emit("newNotification", {
-        message: "You have a new notification",
+      // 🔔 Create and save chat notification
+      const notif = new Notification({
+        recipient: recipientId,
+        sender: senderId,
+        chatId,
+        text: `💬 New message from ${senderName}`,
+        type: "chat", // ✅ REQUIRED FIELD FIXED
       });
 
-      console.log(`📩 Message from ${senderId} to ${recipientId} saved & notified`);
+      await notif.save();
+
+      // 🚀 Emit notification to recipient in real time
+      io.to(recipientId.toString()).emit("notification", {
+        chatId,
+        senderId,
+        senderName,
+        text: notif.text,
+        type: "chat",
+      });
+
+      console.log(`📩 Message from ${senderId} → ${recipientId} saved & notified`);
     } catch (err) {
       console.error("💥 Error in send_message:", err);
     }
   });
 
-  // ✅ Broadcast event notification to all users
+  // 📢 Broadcast event notifications to all users
   socket.on("broadcast_event", async (data) => {
     try {
       const { title, description, creatorName } = data;
@@ -135,6 +135,7 @@ io.on("connection", (socket) => {
         type: "event",
         text: `${creatorName} created a new event: ${title}`,
       });
+
       await notif.save();
 
       // Emit event notification to everyone
@@ -156,6 +157,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// ✅ Start server
+// ✅ Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
