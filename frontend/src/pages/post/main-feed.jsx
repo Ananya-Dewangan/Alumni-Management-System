@@ -30,7 +30,7 @@ export function MainFeed() {
   const [recipientUsername, setRecipientUsername] = useState("");
   const [sendStatus, setSendStatus] = useState("");
 
-  // 🟩 Create Post states
+  // 🟩 Added states for Create Post feature
   const [showPopup, setShowPopup] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -115,7 +115,6 @@ export function MainFeed() {
     alert("Post link copied to clipboard!");
   };
 
-  // 📌 Toggle Comments
   const toggleComments = (postId) => {
     setShowComments((prev) => ({
       ...prev,
@@ -123,7 +122,7 @@ export function MainFeed() {
     }));
   };
 
-  // 🟩 Create Post
+  // 🟩 Handle Create Post
   const handleAddPost = async () => {
     if (!content.trim() && !imageFile) {
       alert("Please write something or upload an image.");
@@ -132,6 +131,7 @@ export function MainFeed() {
     try {
       const formData = new FormData();
       formData.append("content", content);
+      if (title) formData.append("title", title);
       if (imageFile) formData.append("image", imageFile);
 
       const res = await axios.post("http://localhost:5000/api/posts", formData, {
@@ -164,7 +164,7 @@ export function MainFeed() {
 
       {/* 🟩 Create Post Popup */}
       {showPopup && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50 transition-all">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-96">
             <h2 className="text-lg font-semibold mb-3 text-gray-800">
               Create a Post
@@ -228,15 +228,16 @@ export function MainFeed() {
                 />
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">
-                      {post.author?.firstname} {post.author?.lastname}
-                    </h3>
+                    <h3 className="font-semibold">{post.author?.username}</h3>
                     {post.isPromoted && (
                       <Badge variant="secondary" className="text-xs">
                         Promoted
                       </Badge>
                     )}
                   </div>
+                  {post.title && (
+                    <p className="text-base font-medium mt-1">{post.title}</p>
+                  )}
                   <p className="text-sm text-muted-foreground">{post.content}</p>
                   <span className="text-xs text-muted-foreground">
                     {new Date(post.createdAt).toLocaleString()}

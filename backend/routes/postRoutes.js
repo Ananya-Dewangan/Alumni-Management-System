@@ -3,7 +3,6 @@ import fs from "fs";
 import Post from "../models/Post.js";
 import User from "../models/User.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { alumniOnly } from "../middleware/alumniMiddleware.js";
 import upload from "../middleware/multerMiddleware.js";
 import uploadOnCloudinary from "../uploadconfig.js";
 import { createNotification } from "../utils/createNotification.js";
@@ -28,13 +27,12 @@ router.get("/", async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📌 CREATE new post (Alumni only)
+   📌 CREATE new post (Now: alumni, admin & student allowed)
 ----------------------------------------------------------- */
-router.post("/", authMiddleware, alumniOnly, upload.single("image"), async (req, res) => {
+router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
   try {
     let imageUrl = null;
 
-    // ✅ Upload image if provided
     if (req.file) {
       try {
         const cloudRes = await uploadOnCloudinary(req.file.path);
@@ -48,7 +46,6 @@ router.post("/", authMiddleware, alumniOnly, upload.single("image"), async (req,
       }
     }
 
-    // ✅ Create new post
     const newPost = new Post({
       author: req.user._id,
       title: req.body.title,
@@ -59,7 +56,6 @@ router.post("/", authMiddleware, alumniOnly, upload.single("image"), async (req,
     const savedPost = await newPost.save();
     await savedPost.populate("author", "username profilePic role");
 
-    // ✅ Notify followers of the author
     const author = await User.findById(req.user._id).populate("followers", "_id username");
     if (author && author.followers.length > 0) {
       const notifications = author.followers.map((follower) =>
@@ -74,7 +70,6 @@ router.post("/", authMiddleware, alumniOnly, upload.single("image"), async (req,
 
       await Promise.all(notifications);
 
-      // 🔹 Emit socket event to followers
       const io = req.app.get("io");
       author.followers.forEach((f) => {
         io.to(f._id.toString()).emit("newNotification", {
@@ -104,7 +99,6 @@ router.put("/like/:postId", authMiddleware, async (req, res) => {
     if (index === -1) {
       post.likes.push(req.user._id);
 
-      // ✅ Notify post author (not self)
       if (post.author._id.toString() !== userId) {
         await createNotification({
           recipient: post.author._id,
@@ -115,7 +109,7 @@ router.put("/like/:postId", authMiddleware, async (req, res) => {
         });
       }
     } else {
-      post.likes.splice(index, 1); // Unlike
+      post.likes.splice(index, 1);
     }
 
     await post.save();
@@ -143,7 +137,6 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     if (parentCommentId) {
-      // 🔹 Reply to a comment
       const parentComment = post.comments.id(parentCommentId);
       if (!parentComment)
         return res.status(404).json({ message: "Parent comment not found" });
@@ -156,7 +149,6 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
 
       await post.save();
 
-      // 🔔 Notify original commenter if not self
       if (parentComment.user.toString() !== req.user._id.toString()) {
         await createNotification({
           recipient: parentComment.user,
@@ -167,7 +159,6 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
         });
       }
     } else {
-      // 🔹 New comment on post
       post.comments.push({
         user: req.user._id,
         text: text.trim(),
@@ -175,7 +166,6 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
 
       await post.save();
 
-      // 🔔 Notify post author if not self
       if (post.author._id.toString() !== req.user._id.toString()) {
         await createNotification({
           recipient: post.author._id,
@@ -221,6 +211,110 @@ router.get("/comment/:postId", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error("GET /comment/:postId error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* -----------------------------------------------------------
+   📌 EDIT post
+----------------------------------------------------------- */
+router.put("/:id", authMiddleware, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    if (post.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const { title, content } = req.body;
+    post.title = title || post.title;
+    post.content = content || post.content;
+
+    await post.save();
+    await post.populate("author", "username profilePic role");
+    res.json(post);
+  } catch (err) {
+    console.error("PUT /posts/:id error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* -----------------------------------------------------------
+   📌 DELETE post
+----------------------------------------------------------- */
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    if (post.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    await Post.findByIdAndDelete(req.params.id);
+    res.json({ message: "Post deleted successfully" });
+  } catch (err) {
+    console.error("DELETE /posts/:id error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* -----------------------------------------------------------
+   📌 REPOST
+----------------------------------------------------------- */
+router.post("/repost/:id", authMiddleware, async (req, res) => {
+  try {
+    const originalPost = await Post.findById(req.params.id).populate("author", "username");
+    if (!originalPost) return res.status(404).json({ message: "Original post not found" });
+
+    const newPost = new Post({
+      author: req.user._id,
+      title: originalPost.title,
+      content: `🔁 Reposted from ${originalPost.author.username}: ${originalPost.content}`,
+      image_url: originalPost.image_url,
+    });
+
+    const savedRepost = await newPost.save();
+    await savedRepost.populate("author", "username profilePic role");
+
+    res.status(201).json(savedRepost);
+  } catch (err) {
+    console.error("POST /repost/:id error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* -----------------------------------------------------------
+   📩 SEND post to another user
+----------------------------------------------------------- */
+router.post("/send/:postId", authMiddleware, async (req, res) => {
+  try {
+    const { recipientUsername } = req.body;
+    if (!recipientUsername) return res.status(400).json({ message: "Recipient username required" });
+
+    const recipient = await User.findOne({ username: recipientUsername });
+    if (!recipient) return res.status(404).json({ message: "Recipient not found" });
+
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    await createNotification({
+      recipient: recipient._id,
+      sender: req.user._id,
+      type: "share",
+      postId: post._id,
+      text: `${req.user.username} shared a post with you.`,
+    });
+
+    const io = req.app.get("io");
+    io.to(recipient._id.toString()).emit("newNotification", {
+      message: `${req.user.username} shared a post with you.`,
+    });
+
+    res.json({ message: "Post sent successfully" });
+  } catch (err) {
+    console.error("POST /send/:postId error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
