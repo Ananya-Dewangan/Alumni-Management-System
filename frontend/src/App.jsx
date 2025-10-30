@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import ProfilePage from "./pages/profile/ProfilePage";
 import ViewProfile from "./pages/profile/ViewProfile";
 import Register from "./pages/auth/Register";
@@ -12,6 +13,10 @@ import ChatPage from "./pages/chat/ChatPage";
 import NotificationPage from "./pages/chat/NotificationPage";
 import EventPage from "./pages/event/EventPage";
 import ErrorPage from "./pages/error/ErrorPage";
+import SendPostPage from "@/pages/post/SendPostPage";
+
+// ✅ Import your new Admin Data Export page
+import AdminDataExport from "./pages/AdminDataExport";
 
 export default function App() {
   return (
@@ -31,7 +36,12 @@ export default function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/notifications" element={<NotificationPage />} />
         <Route path="/event" element={<EventPage />} />
+        <Route path="/send-post/:postId" element={<SendPostPage />} />
 
+        {/* ✅ Admin data export page */}
+        <Route path="/admin-data-export" element={<AdminDataExport />} />
+
+        {/* Default routes */}
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/error" element={<ErrorPage />} />
         <Route path="*" element={<Navigate to="/error" replace />} />

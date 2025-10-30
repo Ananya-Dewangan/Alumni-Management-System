@@ -15,7 +15,8 @@ import followRoutes from "./routes/followRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
-
+import adminRoutes from "./routes/adminRoutes.js";
+import sendPostRoutes from "./routes/sendPostRoutes.js";
 import Message from "./models/Message.js";
 import Notification from "./models/Notification.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
@@ -55,6 +56,8 @@ app.use("/api/follow", followRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/send-post", sendPostRoutes);
+app.use("/api/admin", adminRoutes); // ✅ Admin routes
 
 // ✅ Socket.IO Events
 io.on("connection", (socket) => {
@@ -63,13 +66,13 @@ io.on("connection", (socket) => {
   // Join personal notification room
   socket.on("join_user", (userId) => {
     socket.join(userId);
-    console.log(`User ${userId} joined their personal room`);
+    console.log(`👤 User ${userId} joined their personal room`);
   });
 
   // Join specific chat room
   socket.on("join_chat", (chatId) => {
     socket.join(chatId);
-    console.log(`Socket ${socket.id} joined chat room ${chatId}`);
+    console.log(`💬 Socket ${socket.id} joined chat room ${chatId}`);
   });
 
   // 💬 Handle chat messages

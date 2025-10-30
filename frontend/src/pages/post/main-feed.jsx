@@ -3,7 +3,6 @@ import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import {
   MessageCircle,
   Repeat2,
@@ -16,6 +15,7 @@ import {
 import LikeButton from "./LikeButton";
 import CommentsSection from "./CommentsSection";
 import LinkedInLoadingScreen from "../../LinkedInLoadingScreen";
+import { useNavigate } from "react-router-dom";
 
 export function MainFeed() {
   const [posts, setPosts] = useState([]);
@@ -25,17 +25,20 @@ export function MainFeed() {
   const [menuOpen, setMenuOpen] = useState(null);
   const [refresh, setRefresh] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showSendPopup, setShowSendPopup] = useState(false);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [recipientUsername, setRecipientUsername] = useState("");
-  const [sendStatus, setSendStatus] = useState("");
+  const [followingUsers, setFollowingUsers] = useState([]);
 
-  // 🟩 Added states for Create Post feature
+  // Create/Edit Post states
   const [showPopup, setShowPopup] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editPostId, setEditPostId] = useState(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [imageFile, setImageFile] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
+  const navigate = useNavigate();
+
+  // 🟦 Fetch current user, following list, and posts
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -45,18 +48,23 @@ export function MainFeed() {
         });
         setCurrentUser(me.data);
 
-        const res = await axios.get("http://localhost:5000/api/posts", {
-          withCredentials: true,
-        });
-        setPosts(res.data);
+        const [postsRes, followRes] = await Promise.all([
+          axios.get("http://localhost:5000/api/posts", { withCredentials: true }),
+          axios.get("http://localhost:5000/api/follow/following", {
+            withCredentials: true,
+          }),
+        ]);
+
+        setPosts(postsRes.data);
+        setFollowingUsers(followRes.data.following.map((u) => u._id));
 
         const status = {};
-        res.data.forEach((post) => {
+        postsRes.data.forEach((post) => {
           status[post._id] = post.likes.includes(me.data._id);
         });
         setLikeStatus(status);
       } catch (err) {
-        console.error(err);
+        console.error("❌ Fetch error:", err);
       } finally {
         setLoading(false);
       }
@@ -64,7 +72,81 @@ export function MainFeed() {
     fetchData();
   }, [refresh]);
 
-  // 📌 Delete Post
+  // 🟦 Follow / Unfollow Toggle
+  const handleFollowToggle = async (userId) => {
+    try {
+      const isFollowing = followingUsers.includes(userId);
+      const route = isFollowing ? "unfollow" : "follow";
+
+      await axios.post(
+        `http://localhost:5000/api/follow/${route}/${userId}`,
+        {},
+        { withCredentials: true }
+      );
+
+      setFollowingUsers((prev) =>
+        isFollowing ? prev.filter((id) => id !== userId) : [...prev, userId]
+      );
+    } catch (err) {
+      console.error("Follow/Unfollow failed:", err);
+      alert("Action failed. Try again.");
+    }
+  };
+
+  // 🟩 Create or Edit Post
+  const handleSavePost = async () => {
+    if (!content.trim() && !imageFile && !editMode) {
+      alert("Please write something or upload an image.");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("content", content);
+      if (imageFile) formData.append("image", imageFile);
+
+      let res;
+      if (editMode) {
+        res = await axios.put(
+          `http://localhost:5000/api/posts/${editPostId}`,
+          formData,
+          { withCredentials: true }
+        );
+        alert("✅ Post updated!");
+      } else {
+        res = await axios.post("http://localhost:5000/api/posts", formData, {
+          withCredentials: true,
+        });
+        alert("✅ Post created!");
+      }
+
+      setPosts(
+        editMode
+          ? posts.map((p) => (p._id === editPostId ? res.data : p))
+          : [res.data, ...posts]
+      );
+      setShowPopup(false);
+      setTitle("");
+      setContent("");
+      setImageFile(null);
+      setPreviewImage(null);
+      setEditMode(false);
+    } catch (err) {
+      console.error("Error saving post:", err);
+      alert("Failed to save post.");
+    }
+  };
+
+  const handleEditPost = (post) => {
+    setEditMode(true);
+    setEditPostId(post._id);
+    setTitle(post.title || "");
+    setContent(post.content || "");
+    setPreviewImage(post.image_url || null);
+    setShowPopup(true);
+  };
+
   const handleDeletePost = async (id) => {
     if (!window.confirm("Are you sure you want to delete this post?")) return;
     try {
@@ -72,28 +154,12 @@ export function MainFeed() {
         withCredentials: true,
       });
       setPosts(posts.filter((p) => p._id !== id));
+      alert("🗑️ Post deleted!");
     } catch (err) {
       console.error("Delete failed:", err);
     }
   };
 
-  // 📌 Edit Post
-  const handleEditPost = async (id, oldContent) => {
-    const newContent = prompt("Edit your post content:", oldContent);
-    if (!newContent || newContent.trim() === oldContent) return;
-    try {
-      const res = await axios.put(
-        `http://localhost:5000/api/posts/${id}`,
-        { content: newContent },
-        { withCredentials: true }
-      );
-      setPosts(posts.map((p) => (p._id === id ? res.data : p)));
-    } catch (err) {
-      console.error("Edit failed:", err);
-    }
-  };
-
-  // 📌 Repost
   const handleRepost = async (id) => {
     try {
       const res = await axios.post(
@@ -102,17 +168,10 @@ export function MainFeed() {
         { withCredentials: true }
       );
       setPosts([res.data, ...posts]);
-      alert("Reposted successfully!");
+      alert("🔁 Reposted successfully!");
     } catch (err) {
       console.error("Repost failed:", err);
     }
-  };
-
-  // 📌 Send (share)
-  const handleSend = (post) => {
-    const shareLink = `${window.location.origin}/post/${post._id}`;
-    navigator.clipboard.writeText(shareLink);
-    alert("Post link copied to clipboard!");
   };
 
   const toggleComments = (postId) => {
@@ -122,101 +181,82 @@ export function MainFeed() {
     }));
   };
 
-  // 🟩 Handle Create Post
-  const handleAddPost = async () => {
-    if (!content.trim() && !imageFile) {
-      alert("Please write something or upload an image.");
-      return;
-    }
-    try {
-      const formData = new FormData();
-      formData.append("content", content);
-      if (title) formData.append("title", title);
-      if (imageFile) formData.append("image", imageFile);
-
-      const res = await axios.post("http://localhost:5000/api/posts", formData, {
-        withCredentials: true,
-      });
-
-      setPosts([res.data, ...posts]);
-      setShowPopup(false);
-      setTitle("");
-      setContent("");
-      setImageFile(null);
-    } catch (err) {
-      console.error("Error creating post:", err);
-    }
-  };
-
   if (loading) return <LinkedInLoadingScreen />;
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto p-4 relative">
-      {/* 🟩 Floating “+” button for alumni */}
-      {currentUser?.role === "alumni" && (
+      {/* Floating + Button */}
+      {(currentUser?.role === "alumni" ||
+        currentUser?.role === "student" ||
+        currentUser?.role === "admin") && (
         <Button
-          className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full w-12 h-12 text-2xl shadow-lg hover:bg-blue-700 transition-all"
+          className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full w-12 h-12 shadow-lg hover:bg-blue-700"
           onClick={() => setShowPopup(true)}
         >
           <Plus className="w-6 h-6" />
         </Button>
       )}
 
-      {/* 🟩 Create Post Popup */}
+      {/* Create/Edit Popup */}
       {showPopup && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-96">
-            <h2 className="text-lg font-semibold mb-3 text-gray-800">
-              Create a Post
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+          <div className="bg-white rounded-xl p-6 w-96 shadow-lg">
+            <h2 className="text-lg font-semibold mb-3">
+              {editMode ? "Edit Post" : "Create Post"}
             </h2>
-
             <input
               type="text"
-              placeholder="Add a title (optional)"
+              placeholder="Title (optional)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full border rounded-md p-2 mb-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full border rounded-md p-2 mb-3 text-sm"
             />
-
             <textarea
-              className="w-full border rounded-md p-2 mb-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
               rows="4"
-              placeholder="What do you want to talk about?"
+              placeholder="Write something..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              className="w-full border rounded-md p-2 mb-3 text-sm"
             />
-
+            {previewImage && (
+              <img
+                src={previewImage}
+                alt="preview"
+                className="w-full h-40 object-cover mb-3 rounded-lg"
+              />
+            )}
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => setImageFile(e.target.files[0])}
+              onChange={(e) => {
+                setImageFile(e.target.files[0]);
+                setPreviewImage(URL.createObjectURL(e.target.files[0]));
+              }}
               className="mb-4 text-sm"
             />
-
             <div className="flex justify-end gap-3">
               <Button
                 variant="outline"
-                onClick={() => setShowPopup(false)}
-                className="hover:bg-gray-100"
+                onClick={() => {
+                  setShowPopup(false);
+                  setEditMode(false);
+                }}
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleAddPost}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Post
+              <Button onClick={handleSavePost} className="bg-blue-600 text-white">
+                {editMode ? "Save" : "Post"}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Existing posts feed */}
+      {/* Posts Feed */}
       {posts.map((post) => (
         <Card key={post._id}>
           <CardContent className="p-0">
-            <div className="p-4 pb-0 flex items-start justify-between">
+            <div className="p-4 flex items-start justify-between">
               <div className="flex items-start gap-3">
                 <img
                   src={
@@ -224,63 +264,80 @@ export function MainFeed() {
                     "https://www.w3schools.com/w3images/avatar3.png"
                   }
                   alt={post.author?.username}
-                  className="w-12 h-12 rounded-full object-cover"
+                  className="w-12 h-12 rounded-full object-cover cursor-pointer"
+                  onClick={() => navigate(`/profile/${post.author?._id}`)}
                 />
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{post.author?.username}</h3>
-                    {post.isPromoted && (
-                      <Badge variant="secondary" className="text-xs">
-                        Promoted
-                      </Badge>
-                    )}
-                  </div>
-                  {post.title && (
-                    <p className="text-base font-medium mt-1">{post.title}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">{post.content}</p>
-                  <span className="text-xs text-muted-foreground">
+                  <h3
+                    className="font-semibold text-blue-700 hover:underline cursor-pointer"
+                    onClick={() => navigate(`/profile/${post.author?._id}`)}
+                  >
+                    {post.author?.username}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {post.content}
+                  </p>
+                  <span className="text-xs text-gray-500">
                     {new Date(post.createdAt).toLocaleString()}
                   </span>
                 </div>
               </div>
 
-              {/* ⋯ Menu for author only */}
-              {currentUser?._id === post.author?._id && (
-                <div className="relative">
+              <div className="flex items-start gap-2">
+                {/* Follow Button */}
+                {post.author?._id !== currentUser?._id && (
                   <Button
-                    variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      setMenuOpen(menuOpen === post._id ? null : post._id)
-                    }
+                    className={`text-xs transition ${
+                      followingUsers.includes(post.author?._id)
+                        ? "bg-blue-200 text-blue-700"
+                        : "bg-blue-500 text-white hover:bg-blue-600"
+                    }`}
+                    onClick={() => handleFollowToggle(post.author?._id)}
                   >
-                    <MoreHorizontal className="w-4 h-4" />
+                    {followingUsers.includes(post.author?._id)
+                      ? "Following"
+                      : "Follow"}
                   </Button>
-                  {menuOpen === post._id && (
-                    <div className="absolute right-0 mt-2 w-28 bg-white border rounded-lg shadow-lg z-10">
-                      <button
-                        onClick={() => {
-                          setMenuOpen(null);
-                          handleEditPost(post._id, post.content);
-                        }}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100"
-                      >
-                        <Edit className="w-4 h-4" /> Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setMenuOpen(null);
-                          handleDeletePost(post._id);
-                        }}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 text-red-500"
-                      >
-                        <Trash2 className="w-4 h-4" /> Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+
+                {/* Action Menu */}
+                {currentUser?._id === post.author?._id && (
+                  <div className="relative">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setMenuOpen(menuOpen === post._id ? null : post._id)
+                      }
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                    {menuOpen === post._id && (
+                      <div className="absolute right-0 mt-2 w-28 bg-white border rounded-lg shadow-lg z-10">
+                        <button
+                          onClick={() => {
+                            setMenuOpen(null);
+                            handleEditPost(post);
+                          }}
+                          className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100"
+                        >
+                          <Edit className="w-4 h-4" /> Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            setMenuOpen(null);
+                            handleDeletePost(post._id);
+                          }}
+                          className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {post.image_url && (
@@ -290,9 +347,10 @@ export function MainFeed() {
                 className="w-full object-cover mt-2"
               />
             )}
+
             <Separator className="my-2" />
 
-            {/* Actions */}
+            {/* Post Actions */}
             <div className="px-4 py-2 flex items-center justify-around">
               <LikeButton
                 post={post}
@@ -312,15 +370,12 @@ export function MainFeed() {
               >
                 <Repeat2 className="w-4 h-4" /> Repost
               </button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex items-center gap-2"
-                onClick={() => handleSend(post)}
+              <button
+                onClick={() => navigate(`/send-post/${post._id}`)}
+                className="flex items-center gap-2 text-sm hover:text-blue-500"
               >
-                <Send className="w-4 h-4" />
-                <span>Send</span>
-              </Button>
+                <Send className="w-4 h-4" /> Send
+              </button>
             </div>
 
             {showComments[post._id] && (

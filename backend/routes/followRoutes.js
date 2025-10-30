@@ -1,28 +1,38 @@
 import express from "express";
 import User from "../models/User.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { createNotification } from "../utils/createNotification.js"; // 🔔 Import notification helper
+import { createNotification } from "../utils/createNotification.js";
 
 const router = express.Router();
 
-// 📌 Get all other users (for searching in MyNetwork)
+/* -----------------------------------------------------------
+   📌 Get all other users (for search or Send Post page)
+----------------------------------------------------------- */
 router.get("/all", authMiddleware, async (req, res) => {
   try {
     const currentUserId = req.user._id;
-
-    // Fetch all users except current user
     const users = await User.find({ _id: { $ne: currentUserId } }).select(
-      "firstname lastname username role profilePic"
+      "firstname lastname username role profilePic followers"
     );
 
-    res.json({ users });
+    // ✅ Add isFollowing boolean for frontend
+    const formatted = users.map((u) => ({
+      ...u._doc,
+      isFollowing: u.followers.some(
+        (followerId) => followerId.toString() === currentUserId.toString()
+      ),
+    }));
+
+    res.json({ users: formatted });
   } catch (err) {
     console.error("GET /follow/all error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// 📌 Get users current user is following
+/* -----------------------------------------------------------
+   📌 Get following list
+----------------------------------------------------------- */
 router.get("/following", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate({
@@ -30,6 +40,7 @@ router.get("/following", authMiddleware, async (req, res) => {
       select: "firstname lastname username role profilePic",
     });
     if (!user) return res.status(404).json({ message: "User not found" });
+
     res.json({ following: user.following || [] });
   } catch (err) {
     console.error("GET /follow/following error:", err);
@@ -37,7 +48,9 @@ router.get("/following", authMiddleware, async (req, res) => {
   }
 });
 
-// 📌 Get users who follow the current user
+/* -----------------------------------------------------------
+   📌 Get followers list
+----------------------------------------------------------- */
 router.get("/followers", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate({
@@ -45,6 +58,7 @@ router.get("/followers", authMiddleware, async (req, res) => {
       select: "firstname lastname username role profilePic",
     });
     if (!user) return res.status(404).json({ message: "User not found" });
+
     res.json({ followers: user.followers || [] });
   } catch (err) {
     console.error("GET /follow/followers error:", err);
@@ -52,7 +66,9 @@ router.get("/followers", authMiddleware, async (req, res) => {
   }
 });
 
-// 📌 Follow a user (with notification)
+/* -----------------------------------------------------------
+   📌 Follow a user (with notification)
+----------------------------------------------------------- */
 router.post("/follow/:id", authMiddleware, async (req, res) => {
   try {
     const targetId = req.params.id;
@@ -66,10 +82,8 @@ router.post("/follow/:id", authMiddleware, async (req, res) => {
       User.findById(currentId),
       User.findById(targetId),
     ]);
-    if (!targetUser)
-      return res.status(404).json({ message: "Target user not found" });
+    if (!targetUser) return res.status(404).json({ message: "Target user not found" });
 
-    // Add follow only if not already following
     if (!currentUser.following.includes(targetId)) {
       currentUser.following.push(targetId);
       targetUser.followers.push(currentId);
@@ -77,7 +91,7 @@ router.post("/follow/:id", authMiddleware, async (req, res) => {
       await currentUser.save();
       await targetUser.save();
 
-      // 🔔 Create follow notification
+      // ✅ Fixed string interpolation inside template literal
       await createNotification({
         recipient: targetUser._id,
         sender: req.user._id,
@@ -86,14 +100,16 @@ router.post("/follow/:id", authMiddleware, async (req, res) => {
       });
     }
 
-    res.json({ message: "Followed", following: currentUser.following });
+    res.json({ message: "Followed successfully", following: currentUser.following });
   } catch (err) {
     console.error("POST /follow/:id error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// 📌 Unfollow a user
+/* -----------------------------------------------------------
+   📌 Unfollow a user
+----------------------------------------------------------- */
 router.post("/unfollow/:id", authMiddleware, async (req, res) => {
   try {
     const targetId = req.params.id;
@@ -107,10 +123,8 @@ router.post("/unfollow/:id", authMiddleware, async (req, res) => {
       User.findById(currentId),
       User.findById(targetId),
     ]);
-    if (!targetUser)
-      return res.status(404).json({ message: "Target user not found" });
+    if (!targetUser) return res.status(404).json({ message: "Target user not found" });
 
-    // Remove from followers/following lists
     currentUser.following = currentUser.following.filter(
       (id) => id.toString() !== targetId
     );
@@ -121,7 +135,7 @@ router.post("/unfollow/:id", authMiddleware, async (req, res) => {
     await currentUser.save();
     await targetUser.save();
 
-    res.json({ message: "Unfollowed", following: currentUser.following });
+    res.json({ message: "Unfollowed successfully", following: currentUser.following });
   } catch (err) {
     console.error("POST /unfollow/:id error:", err);
     res.status(500).json({ message: "Server error" });

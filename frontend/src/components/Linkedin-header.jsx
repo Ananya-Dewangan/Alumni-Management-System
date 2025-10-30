@@ -1,4 +1,4 @@
-import { Home, Users, Briefcase, Bell, User, LogOut } from "lucide-react";
+import { Home, Users, Briefcase, Bell, User, LogOut, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -10,8 +10,24 @@ const socket = io("http://localhost:5000", { withCredentials: true });
 
 export function LinkedInHeader() {
   const [notifCount, setNotifCount] = useState(0);
+  const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // 🔹 Fetch logged-in user (to check role)
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/auth/me", {
+          withCredentials: true,
+        });
+        setUser(res.data);
+      } catch (err) {
+        console.error("Error fetching user:", err);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // 🔹 Fetch notification count
   const fetchNotifCount = async () => {
@@ -57,8 +73,16 @@ export function LinkedInHeader() {
   // 🟦 Helper to check active route
   const isActive = (path) => location.pathname.startsWith(path);
 
+  // 🎨 Reusable active style
+  const navButtonStyle = (path) =>
+    `flex flex-col items-center px-3 relative transition-all duration-200 ease-in-out 
+     ${isActive(path)
+       ? "text-blue-600 scale-110 after:content-[''] after:absolute after:bottom-0 after:w-6 after:h-[2px] after:bg-blue-600 after:rounded-full"
+       : "text-gray-600 hover:text-blue-600 hover:scale-105 hover:bg-gray-50"
+     }`;
+
   return (
-    <header className="bg-white border-b sticky top-0 z-50">
+    <header className="bg-white border-b shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
           {/* 🔹 Logo */}
@@ -72,66 +96,44 @@ export function LinkedInHeader() {
           </Link>
 
           {/* 🔹 Navigation */}
-          <nav className="flex items-center">
+          <nav className="flex items-center gap-2">
             <Link to="/home">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col items-center px-3 ${
-                  isActive("/home")
-                    ? "bg-blue-100 text-blue-600"
-                    : "hover:bg-blue-50 text-gray-700"
-                }`}
-              >
-                <Home className="w-5 h-5" />
-                <span className="text-xs">Home</span>
+              <Button variant="ghost" size="sm" className={navButtonStyle("/home")}>
+                <Home className="w-5 h-5 mb-0.5" />
+                <span className="text-xs font-medium">Home</span>
               </Button>
             </Link>
 
             <Link to="/network">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col items-center px-3 ${
-                  isActive("/network")
-                    ? "bg-blue-100 text-blue-600"
-                    : "hover:bg-blue-50 text-gray-700"
-                }`}
-              >
-                <Users className="w-5 h-5" />
-                <span className="text-xs">My Network</span>
+              <Button variant="ghost" size="sm" className={navButtonStyle("/network")}>
+                <Users className="w-5 h-5 mb-0.5" />
+                <span className="text-xs font-medium">My Network</span>
               </Button>
             </Link>
 
             <Link to="/event">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col items-center px-3 ${
-                  isActive("/event")
-                    ? "bg-blue-100 text-blue-600"
-                    : "hover:bg-blue-50 text-gray-700"
-                }`}
-              >
-                <Briefcase className="w-5 h-5" />
-                <span className="text-xs">Events</span>
+              <Button variant="ghost" size="sm" className={navButtonStyle("/event")}>
+                <Briefcase className="w-5 h-5 mb-0.5" />
+                <span className="text-xs font-medium">Events</span>
               </Button>
             </Link>
 
+            {/* 🔹 Admin Data Export */}
+            {user?.role === "admin" && (
+              <Link to="/admin-data-export">
+                <Button variant="ghost" size="sm" className={navButtonStyle("/admin-data-export")}>
+                  <Database className="w-5 h-5 mb-0.5" />
+                  <span className="text-xs font-medium">Export Data</span>
+                </Button>
+              </Link>
+            )}
+
             <Link to="/notifications">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col items-center px-3 relative ${
-                  isActive("/notifications")
-                    ? "bg-blue-100 text-blue-600"
-                    : "hover:bg-blue-50 text-gray-700"
-                }`}
-              >
-                <Bell className="w-5 h-5" />
-                <span className="text-xs">Notifications</span>
+              <Button variant="ghost" size="sm" className={`${navButtonStyle("/notifications")} relative`}>
+                <Bell className="w-5 h-5 mb-0.5" />
+                <span className="text-xs font-medium">Notifications</span>
                 {notifCount > 0 && !isActive("/notifications") && (
-                  <Badge className="absolute -top-0 -right-1 bg-red-500 text-white text-xs h-5 w-5 flex items-center justify-center rounded-full">
+                  <Badge className="absolute -top-0 -right-1 bg-red-500 text-white text-xs h-5 w-5 flex items-center justify-center rounded-full shadow">
                     {notifCount}
                   </Badge>
                 )}
@@ -139,31 +141,23 @@ export function LinkedInHeader() {
             </Link>
 
             <Link to="/profile">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col items-center px-3 ${
-                  isActive("/profile")
-                    ? "bg-blue-100 text-blue-600"
-                    : "hover:bg-blue-50 text-gray-700"
-                }`}
-              >
-                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+              <Button variant="ghost" size="sm" className={navButtonStyle("/profile")}>
+                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
                   <User className="w-4 h-4" />
                 </div>
-                <span className="text-xs">Me</span>
+                <span className="text-xs font-medium">Me</span>
               </Button>
             </Link>
 
-            {/* 🔹 Logout Button */}
+            {/* 🔹 Logout */}
             <Button
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="flex flex-col items-center px-3 text-red-600 hover:text-red-700"
+              className="flex flex-col items-center px-3 text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
             >
-              <LogOut className="w-5 h-5" />
-              <span className="text-xs">Logout</span>
+              <LogOut className="w-5 h-5 mb-0.5" />
+              <span className="text-xs font-medium">Logout</span>
             </Button>
           </nav>
         </div>
