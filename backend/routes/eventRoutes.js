@@ -10,23 +10,26 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
-// Alumni or Admin creates an event
+// 🎯 Alumni or Admin creates an event
 router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
   try {
     // Allow both alumni and admin
     if (req.user.role !== "alumni" && req.user.role !== "admin") {
-      return res.status(403).json({ error: "Only alumni or admin can create events" });
+      return res
+        .status(403)
+        .json({ error: "Only alumni or admin can create events" });
     }
 
     if (!req.file) {
       return res.status(400).json({ message: "Image is required" });
     }
 
-    // Upload to Cloudinary
+    // 📤 Upload to Cloudinary
     const cloudRes = await uploadOnCloudinary(req.file.path);
-    if (!cloudRes) return res.status(500).json({ error: "Cloudinary upload failed" });
+    if (!cloudRes)
+      return res.status(500).json({ error: "Cloudinary upload failed" });
 
-    // Delete local file after upload
+    // 🧹 Delete local file after upload
     fs.unlinkSync(req.file.path);
 
     const { title, description, date, seats } = req.body;
@@ -42,7 +45,7 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
 
     await event.save();
 
-    // ✅ Create Notifications for all users
+    // ✅ Create notifications for all users except the creator
     const allUsers = await User.find({ _id: { $ne: req.user._id } });
     const notifications = allUsers.map((user) => ({
       recipient: user._id,
@@ -53,7 +56,7 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
 
     await Notification.insertMany(notifications);
 
-    // ✅ Send real-time notifications using Socket.IO
+    // ✅ Real-time notifications via Socket.IO
     const io = req.app.get("io");
     allUsers.forEach((user) => {
       io.to(user._id.toString()).emit("notification", {
@@ -70,21 +73,26 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
   }
 });
 
-// Get all events
+// 🧾 Get all events
 router.get("/", authMiddleware, async (req, res) => {
-  const events = await Event.find()
-    .populate("createdBy", "username role")
-    .populate("participants", "username");
-  res.json(events);
+  try {
+    const events = await Event.find()
+      .populate("createdBy", "username role")
+      .populate("participants", "username");
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Student participates
+// 🧍‍♀ Participate in event (student or alumni)
 router.post("/:id/participate", authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== "student" && req.user.role !== "alumni") {
-  return res.status(403).json({ error: "Only students or alumni can participate" });
-}
-
+      return res
+        .status(403)
+        .json({ error: "Only students or alumni can participate" });
+    }
 
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ error: "Event not found" });
@@ -106,7 +114,7 @@ router.post("/:id/participate", authMiddleware, async (req, res) => {
   }
 });
 
-// Cancel participation
+// ❌ Cancel participation
 router.post("/:id/cancel", authMiddleware, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
@@ -123,17 +131,21 @@ router.post("/:id/cancel", authMiddleware, async (req, res) => {
   }
 });
 
-// Delete an event
+// 🗑 Delete an event (only admin or creator)
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-
     if (!event) {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    if (req.user.role !== "admin" && event.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: "You are not authorized to delete this event" });
+    if (
+      req.user.role !== "admin" &&
+      event.createdBy.toString() !== req.user._id.toString()
+    ) {
+      return res
+        .status(403)
+        .json({ error: "You are not authorized to delete this event" });
     }
 
     await event.deleteOne();
@@ -143,17 +155,25 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Get participants (only creator or admin)
+// 👥 Get participants (only creator or admin)
 router.get("/:id/participants", authMiddleware, async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id).populate("participants", "username email role");
+    const event = await Event.findById(req.params.id).populate(
+      "participants",
+      "username email role"
+    );
 
     if (!event) {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    if (req.user.role !== "admin" && event.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: "You are not authorized to view participants" });
+    if (
+      req.user.role !== "admin" &&
+      event.createdBy.toString() !== req.user._id.toString()
+    ) {
+      return res
+        .status(403)
+        .json({ error: "You are not authorized to view participants" });
     }
 
     res.json(event.participants);

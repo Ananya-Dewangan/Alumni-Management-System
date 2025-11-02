@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import LinkedInLoadingScreen from "../../LinkedInLoadingScreen";
-import { LinkedInHeader } from "../../components/linkedin-header";
+import { LinkedInHeader } from "../../components/Linkedin-header";
 import { useNavigate } from "react-router-dom";
 
 export default function NotificationPage() {

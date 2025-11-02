@@ -11,11 +11,13 @@ import {
   Edit,
   Trash2,
   Plus,
+  Heart,
 } from "lucide-react";
 import LikeButton from "./LikeButton";
 import CommentsSection from "./CommentsSection";
 import LinkedInLoadingScreen from "../../LinkedInLoadingScreen";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function MainFeed() {
   const [posts, setPosts] = useState([]);
@@ -23,11 +25,9 @@ export function MainFeed() {
   const [likeStatus, setLikeStatus] = useState({});
   const [showComments, setShowComments] = useState({});
   const [menuOpen, setMenuOpen] = useState(null);
-  const [refresh, setRefresh] = useState(false);
   const [loading, setLoading] = useState(true);
   const [followingUsers, setFollowingUsers] = useState([]);
 
-  // Create/Edit Post states
   const [showPopup, setShowPopup] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editPostId, setEditPostId] = useState(null);
@@ -38,7 +38,7 @@ export function MainFeed() {
 
   const navigate = useNavigate();
 
-  // 🟦 Fetch current user, following list, and posts
+  // Fetch user + posts
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -70,14 +70,13 @@ export function MainFeed() {
       }
     };
     fetchData();
-  }, [refresh]);
+  }, []);
 
-  // 🟦 Follow / Unfollow Toggle
+  // Follow/Unfollow
   const handleFollowToggle = async (userId) => {
     try {
       const isFollowing = followingUsers.includes(userId);
       const route = isFollowing ? "unfollow" : "follow";
-
       await axios.post(
         `http://localhost:5000/api/follow/${route}/${userId}`,
         {},
@@ -93,7 +92,7 @@ export function MainFeed() {
     }
   };
 
-  // 🟩 Create or Edit Post
+  // Save post (create/edit)
   const handleSavePost = async () => {
     if (!content.trim() && !imageFile && !editMode) {
       alert("Please write something or upload an image.");
@@ -184,208 +183,232 @@ export function MainFeed() {
   if (loading) return <LinkedInLoadingScreen />;
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto p-4 relative">
-      {/* Floating + Button */}
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      {/* Floating Create Button */}
       {(currentUser?.role === "alumni" ||
         currentUser?.role === "student" ||
         currentUser?.role === "admin") && (
         <Button
-          className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full w-12 h-12 shadow-lg hover:bg-blue-700"
+          className="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-xl hover:shadow-2xl transition-transform hover:scale-105 rounded-full w-16 h-16 flex items-center justify-center"
           onClick={() => setShowPopup(true)}
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-7 h-7" />
         </Button>
       )}
 
-      {/* Create/Edit Popup */}
-      {showPopup && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
-          <div className="bg-white rounded-xl p-6 w-96 shadow-lg">
-            <h2 className="text-lg font-semibold mb-3">
-              {editMode ? "Edit Post" : "Create Post"}
-            </h2>
-            <input
-              type="text"
-              placeholder="Title (optional)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full border rounded-md p-2 mb-3 text-sm"
-            />
-            <textarea
-              rows="4"
-              placeholder="Write something..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full border rounded-md p-2 mb-3 text-sm"
-            />
-            {previewImage && (
-              <img
-                src={previewImage}
-                alt="preview"
-                className="w-full h-40 object-cover mb-3 rounded-lg"
+      {/* Create/Edit Modal */}
+      <AnimatePresence>
+        {showPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50"
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 w-[30rem] shadow-2xl border border-gray-100"
+            >
+              <h2 className="text-2xl font-semibold mb-4 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {editMode ? "Edit Your Post ✏️" : "Create New Post 🪶"}
+              </h2>
+              <input
+                type="text"
+                placeholder="Post title (optional)"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl p-3 mb-3 text-sm focus:ring-2 focus:ring-blue-500"
               />
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                setImageFile(e.target.files[0]);
-                setPreviewImage(URL.createObjectURL(e.target.files[0]));
-              }}
-              className="mb-4 text-sm"
-            />
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowPopup(false);
-                  setEditMode(false);
+              <textarea
+                rows="4"
+                placeholder="Share your thoughts..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl p-3 mb-3 text-sm focus:ring-2 focus:ring-purple-500"
+              />
+              {previewImage && (
+                <img
+                  src={previewImage}
+                  alt="preview"
+                  className="w-full h-52 object-cover rounded-lg mb-3 shadow"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  setImageFile(e.target.files[0]);
+                  setPreviewImage(URL.createObjectURL(e.target.files[0]));
                 }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleSavePost} className="bg-blue-600 text-white">
-                {editMode ? "Save" : "Post"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+                className="mb-4 text-sm"
+              />
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => {
+                    setShowPopup(false);
+                    setEditMode(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSavePost}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full"
+                >
+                  {editMode ? "Save Changes" : "Post Now"}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Posts Feed */}
-      {posts.map((post) => (
-        <Card key={post._id}>
-          <CardContent className="p-0">
-            <div className="p-4 flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <img
-                  src={
-                    post.author?.profilePic ||
-                    "https://www.w3schools.com/w3images/avatar3.png"
-                  }
-                  alt={post.author?.username}
-                  className="w-12 h-12 rounded-full object-cover cursor-pointer"
-                  onClick={() => navigate(`/profile/${post.author?._id}`)}
-                />
-                <div>
-                  <h3
-                    className="font-semibold text-blue-700 hover:underline cursor-pointer"
-                    onClick={() => navigate(`/profile/${post.author?._id}`)}
-                  >
-                    {post.author?.username}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {post.content}
-                  </p>
-                  <span className="text-xs text-gray-500">
-                    {new Date(post.createdAt).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2">
-                {/* Follow Button */}
-                {post.author?._id !== currentUser?._id && (
-                  <Button
-                    size="sm"
-                    className={`text-xs transition ${
-                      followingUsers.includes(post.author?._id)
-                        ? "bg-blue-200 text-blue-700"
-                        : "bg-blue-500 text-white hover:bg-blue-600"
-                    }`}
-                    onClick={() => handleFollowToggle(post.author?._id)}
-                  >
-                    {followingUsers.includes(post.author?._id)
-                      ? "Following"
-                      : "Follow"}
-                  </Button>
-                )}
-
-                {/* Action Menu */}
-                {currentUser?._id === post.author?._id && (
-                  <div className="relative">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setMenuOpen(menuOpen === post._id ? null : post._id)
+      <AnimatePresence>
+        {posts.map((post) => (
+          <motion.div
+            key={post._id}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card className="rounded-3xl border border-gray-200 bg-white shadow-lg hover:shadow-2xl hover:border-blue-200 transition-all duration-300 mb-6 overflow-hidden">
+              <CardContent className="p-0">
+                {/* Header */}
+                <div className="p-5 flex items-start justify-between bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50">
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={
+                        post.author?.profilePic ||
+                        "https://www.w3schools.com/w3images/avatar3.png"
                       }
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                    {menuOpen === post._id && (
-                      <div className="absolute right-0 mt-2 w-28 bg-white border rounded-lg shadow-lg z-10">
-                        <button
-                          onClick={() => {
-                            setMenuOpen(null);
-                            handleEditPost(post);
-                          }}
-                          className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100"
+                      alt={post.author?.username}
+                      className="w-14 h-14 rounded-full object-cover border border-gray-300 cursor-pointer"
+                      onClick={() => navigate(`/profile/${post.author?._id}`)}
+                    />
+                    <div>
+                      <h3
+                        className="font-semibold text-gray-900 hover:text-blue-700 cursor-pointer text-lg"
+                        onClick={() => navigate(`/profile/${post.author?._id}`)}
+                      >
+                        {post.author?.username}
+                      </h3>
+                      <p className="text-sm text-gray-700 mt-1">{post.content}</p>
+                      <span className="text-xs text-gray-500 mt-1 block">
+                        {new Date(post.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Menu */}
+                  <div className="flex items-start gap-2">
+                    {post.author?._id !== currentUser?._id && (
+                      <Button
+                        size="sm"
+                        className={`text-xs rounded-full px-3 py-1 transition ${
+                          followingUsers.includes(post.author?._id)
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90"
+                        }`}
+                        onClick={() => handleFollowToggle(post.author?._id)}
+                      >
+                        {followingUsers.includes(post.author?._id)
+                          ? "Following"
+                          : "Follow"}
+                      </Button>
+                    )}
+
+                    {currentUser?._id === post.author?._id && (
+                      <div className="relative">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setMenuOpen(menuOpen === post._id ? null : post._id)
+                          }
                         >
-                          <Edit className="w-4 h-4" /> Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            setMenuOpen(null);
-                            handleDeletePost(post._id);
-                          }}
-                          className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 text-red-500"
-                        >
-                          <Trash2 className="w-4 h-4" /> Delete
-                        </button>
+                          <MoreHorizontal className="w-5 h-5" />
+                        </Button>
+                        {menuOpen === post._id && (
+                          <div className="absolute right-0 mt-2 w-32 bg-white border rounded-xl shadow-lg z-10">
+                            <button
+                              onClick={() => {
+                                setMenuOpen(null);
+                                handleEditPost(post);
+                              }}
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100"
+                            >
+                              <Edit className="w-4 h-4" /> Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setMenuOpen(null);
+                                handleDeletePost(post._id);
+                              }}
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-100 text-red-500"
+                            >
+                              <Trash2 className="w-4 h-4" /> Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Image */}
+                {post.image_url && (
+                  <img
+                    src={post.image_url}
+                    alt="post"
+                    className="w-full max-h-[500px] object-cover"
+                  />
                 )}
-              </div>
-            </div>
 
-            {post.image_url && (
-              <img
-                src={post.image_url}
-                alt="post"
-                className="w-full object-cover mt-2"
-              />
-            )}
+                <Separator className="my-2" />
 
-            <Separator className="my-2" />
+                {/* Actions */}
+                <div className="px-8 py-3 flex items-center justify-between text-gray-700">
+                  <LikeButton
+                    post={post}
+                    setPosts={setPosts}
+                    likeStatus={likeStatus}
+                    setLikeStatus={setLikeStatus}
+                  />
+                  <button
+                    onClick={() => toggleComments(post._id)}
+                    className="flex items-center gap-2 text-sm hover:text-blue-600"
+                  >
+                    <MessageCircle className="w-4 h-4" /> Comment
+                  </button>
+                  <button
+                    onClick={() => handleRepost(post._id)}
+                    className="flex items-center gap-2 text-sm hover:text-purple-600"
+                  >
+                    <Repeat2 className="w-4 h-4" /> Repost
+                  </button>
+                  <button
+                    onClick={() => navigate(`/send-post/${post._id}`)}
+                    className="flex items-center gap-2 text-sm hover:text-pink-600"
+                  >
+                    <Send className="w-4 h-4" /> Send
+                  </button>
+                </div>
 
-            {/* Post Actions */}
-            <div className="px-4 py-2 flex items-center justify-around">
-              <LikeButton
-                post={post}
-                setPosts={setPosts}
-                likeStatus={likeStatus}
-                setLikeStatus={setLikeStatus}
-              />
-              <button
-                onClick={() => toggleComments(post._id)}
-                className="flex items-center gap-2 text-sm hover:text-blue-500"
-              >
-                <MessageCircle className="w-4 h-4" /> Comment
-              </button>
-              <button
-                onClick={() => handleRepost(post._id)}
-                className="flex items-center gap-2 text-sm hover:text-blue-500"
-              >
-                <Repeat2 className="w-4 h-4" /> Repost
-              </button>
-              <button
-                onClick={() => navigate(`/send-post/${post._id}`)}
-                className="flex items-center gap-2 text-sm hover:text-blue-500"
-              >
-                <Send className="w-4 h-4" /> Send
-              </button>
-            </div>
-
-            {showComments[post._id] && (
-              <div className="mt-2 px-4">
-                <CommentsSection postId={post._id} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+                {showComments[post._id] && (
+                  <div className="mt-2 px-6 pb-4">
+                    <CommentsSection postId={post._id} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

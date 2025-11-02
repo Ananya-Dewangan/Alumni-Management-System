@@ -4,7 +4,7 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ✅ Fetch current user's profile
+// Fetch current user's profile
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
@@ -16,7 +16,7 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// ✅ Update profile details
+// Update profile details
 router.put("/details", authMiddleware, async (req, res) => {
   try {
     const updates = req.body;
@@ -33,6 +33,34 @@ router.put("/details", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Error updating profile:", err);
     res.status(500).json({ message: "Server error updating profile" });
+  }
+});
+
+/**
+ * ✅ Update user experiences
+ */
+router.put("/experience", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { experience } = req.body;
+
+    if (!Array.isArray(experience)) {
+      return res.status(400).json({ message: "Experience must be an array" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { experience },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: "Experiences updated successfully",
+      experience: updatedUser.experience,
+    });
+  } catch (error) {
+    console.error("Error updating experiences:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
