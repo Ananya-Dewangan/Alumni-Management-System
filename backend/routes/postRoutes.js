@@ -1,3 +1,4 @@
+// routes/postRoutes.js
 import express from "express";
 import fs from "fs";
 import Post from "../models/Post.js";
@@ -27,7 +28,7 @@ router.get("/", async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📌 CREATE new post
+   📌 CREATE new post (✅ all roles: alumni, admin, student)
 ----------------------------------------------------------- */
 router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
   try {
@@ -59,8 +60,14 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
     await savedPost.populate("author", "username profilePic role");
 
     // ✅ Notify followers of the author
-    const author = await User.findById(req.user._id).populate("followers", "_id username");
+    const author = await User.findById(req.user._id).populate(
+      "followers",
+      "_id username"
+    );
+
     if (author && author.followers.length > 0) {
+      const io = req.app.get("io");
+
       const notifications = author.followers.map((follower) =>
         createNotification({
           recipient: follower._id,
@@ -74,7 +81,6 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
       await Promise.all(notifications);
 
       // 🔹 Emit socket event to followers
-      const io = req.app.get("io");
       author.followers.forEach((f) => {
         io.to(f._id.toString()).emit("newNotification", {
           message: `${req.user.username} posted a new update.`,
@@ -94,7 +100,10 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
 ----------------------------------------------------------- */
 router.put("/like/:postId", authMiddleware, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId).populate("author", "username");
+    const post = await Post.findById(req.params.postId).populate(
+      "author",
+      "username"
+    );
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     const userId = req.user._id.toString();
@@ -211,7 +220,10 @@ router.get("/comment/:postId", authMiddleware, async (req, res) => {
     );
 
     const startIndex = (page - 1) * limit;
-    const paginated = sortedComments.slice(startIndex, startIndex + parseInt(limit));
+    const paginated = sortedComments.slice(
+      startIndex,
+      startIndex + parseInt(limit)
+    );
 
     res.json({
       comments: paginated,
@@ -224,7 +236,7 @@ router.get("/comment/:postId", authMiddleware, async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📌 EDIT post
+   📌 EDIT post (✅ title, content & image)
 ----------------------------------------------------------- */
 router.put("/:id", authMiddleware, upload.single("image"), async (req, res) => {
   try {
@@ -263,7 +275,7 @@ router.put("/:id", authMiddleware, upload.single("image"), async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📌 DELETE post
+   📌 DELETE post (only author)
 ----------------------------------------------------------- */
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
@@ -283,22 +295,45 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📌 REPOST (reference another)
+   📌 REPOST (reference another post + notify author)
 ----------------------------------------------------------- */
 router.post("/repost/:id", authMiddleware, async (req, res) => {
   try {
-    const originalPost = await Post.findById(req.params.id).populate("author", "username");
-    if (!originalPost) return res.status(404).json({ message: "Original post not found" });
+    const originalPost = await Post.findById(req.params.id).populate(
+      "author",
+      "username profilePic role"
+    );
+    if (!originalPost)
+      return res.status(404).json({ message: "Original post not found" });
 
+    // ✅ Create a new post with reference to the original
     const newPost = new Post({
       author: req.user._id,
       title: originalPost.title,
-      content: `🔁 Reposted from ${originalPost.author.username}: ${originalPost.content}`,
+      content: originalPost.content,
       image_url: originalPost.image_url,
+      isRepost: true,
+      originalPost: originalPost._id,
     });
 
     const savedRepost = await newPost.save();
     await savedRepost.populate("author", "username profilePic role");
+
+    // ✅ Notify the original author (if not self)
+    if (originalPost.author._id.toString() !== req.user._id.toString()) {
+      await createNotification({
+        recipient: originalPost.author._id,
+        sender: req.user._id,
+        type: "repost",
+        postId: savedRepost._id,
+        text: `${req.user.username} reposted your post.`,
+      });
+
+      const io = req.app.get("io");
+      io.to(originalPost.author._id.toString()).emit("newNotification", {
+        message: `${req.user.username} reposted your post.`,
+      });
+    }
 
     res.status(201).json(savedRepost);
   } catch (err) {
@@ -317,7 +352,8 @@ router.post("/send/:postId", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Recipient username required" });
 
     const recipient = await User.findOne({ username: recipientUsername });
-    if (!recipient) return res.status(404).json({ message: "Recipient not found" });
+    if (!recipient)
+      return res.status(404).json({ message: "Recipient not found" });
 
     const post = await Post.findById(req.params.postId);
     if (!post) return res.status(404).json({ message: "Post not found" });
@@ -325,19 +361,37 @@ router.post("/send/:postId", authMiddleware, async (req, res) => {
     await createNotification({
       recipient: recipient._id,
       sender: req.user._id,
-      type: "share",
+      type: "send_post",
       postId: post._id,
-      text: `${req.user.username} shared a post with you.`,
+      text: `${req.user.username} sent you a post.`,
     });
 
     const io = req.app.get("io");
     io.to(recipient._id.toString()).emit("newNotification", {
-      message: `${req.user.username} shared a post with you.`,
+      message: `${req.user.username} sent you a post.`,
     });
 
     res.json({ message: "Post sent successfully" });
   } catch (err) {
     console.error("POST /send/:postId error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* -----------------------------------------------------------
+   📍 Get a single post by ID
+----------------------------------------------------------- */
+router.get("/:id", async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate("author", "username profilePic role")
+      .populate("comments.user", "username profilePic role");
+
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    res.json(post);
+  } catch (err) {
+    console.error("Error fetching post:", err);
     res.status(500).json({ message: "Server error" });
   }
 });

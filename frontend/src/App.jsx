@@ -1,6 +1,5 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
 import ProfilePage from "./pages/profile/ProfilePage";
 import ViewProfile from "./pages/profile/ViewProfile";
 import Register from "./pages/auth/Register";
@@ -14,6 +13,7 @@ import NotificationPage from "./pages/chat/NotificationPage";
 import EventPage from "./pages/event/EventPage";
 import ErrorPage from "./pages/error/ErrorPage";
 import SendPostPage from "@/pages/post/SendPostPage";
+import SinglePostPage from "./pages/post/SinglePostPage";
 
 // ✅ Import your new Admin Data Export page
 import AdminDataExport from "./pages/AdminDataExport";
@@ -45,6 +45,9 @@ export default function App() {
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/error" element={<ErrorPage />} />
         <Route path="*" element={<Navigate to="/error" replace />} />
+        <Route path="/post/:id" element={<SinglePostPage />} />
+        <Route path="/event/:id" element={<EventPage />} />
+        <Route path="/profile/:id" element={<ProfilePage />} />
       </Routes>
     </BrowserRouter>
   );

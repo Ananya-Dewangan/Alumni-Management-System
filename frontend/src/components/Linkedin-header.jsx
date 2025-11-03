@@ -165,3 +165,5 @@ export function LinkedInHeader() {
     </header>
   );
 }
+
+export default LinkedInHeader;

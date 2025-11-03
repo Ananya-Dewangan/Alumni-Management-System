@@ -5,8 +5,8 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 import upload from "../middleware/multerMiddleware.js";
 import uploadOnCloudinary from "../uploadconfig.js";
 import fs from "fs";
-import Notification from "../models/Notification.js";
 import User from "../models/User.js";
+import { createNotification } from "../utils/createNotification.js";
 
 const router = express.Router();
 
@@ -47,24 +47,21 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
 
     // ✅ Create notifications for all users except the creator
     const allUsers = await User.find({ _id: { $ne: req.user._id } });
-    const notifications = allUsers.map((user) => ({
-      recipient: user._id,
-      sender: req.user._id,
-      type: "event",
-      text: `New event "${title}" has been created by ${req.user.username}`,
-    }));
 
-    await Notification.insertMany(notifications);
-
-    // ✅ Real-time notifications via Socket.IO
     const io = req.app.get("io");
-    allUsers.forEach((user) => {
-      io.to(user._id.toString()).emit("notification", {
-        type: "event",
-        title,
-        message: `New event "${title}" created by ${req.user.username}`,
-      });
-    });
+
+    await Promise.all(
+      allUsers.map((user) =>
+        createNotification({
+          recipient: user._id,
+          sender: req.user._id,
+          type: "event",
+          eventId: event._id,
+          text: `New event "${title}" has been created by ${req.user.username}`,
+          io,
+        })
+      )
+    );
 
     res.json(event);
   } catch (err) {
@@ -135,6 +132,7 @@ router.post("/:id/cancel", authMiddleware, async (req, res) => {
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
+
     if (!event) {
       return res.status(404).json({ error: "Event not found" });
     }

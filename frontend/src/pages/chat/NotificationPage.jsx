@@ -17,7 +17,7 @@ export default function NotificationPage() {
         const res = await axios.get("http://localhost:5000/api/auth/me", {
           withCredentials: true,
         });
-        if (!res.data._id || !res.data.username) {
+        if (!res.data?._id || !res.data?.username) {
           navigate("/auth");
         }
       } catch (err) {
@@ -35,14 +35,21 @@ export default function NotificationPage() {
         const res = await axios.get("http://localhost:5000/api/notifications", {
           withCredentials: true,
         });
-        setNotifications(res.data);
-
-        // ✅ Mark all notifications as read
-        await axios.put(
-          "http://localhost:5000/api/notifications/mark-read",
-          {},
-          { withCredentials: true }
+        const sortedNotifications = res.data.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
+        setNotifications(sortedNotifications);
+
+        // ✅ Mark all as read
+        axios
+          .put(
+            "http://localhost:5000/api/notifications/mark-read",
+            {},
+            { withCredentials: true }
+          )
+          .catch((err) =>
+            console.warn("Failed to mark notifications read:", err)
+          );
       } catch (err) {
         console.error("Error fetching notifications:", err);
       } finally {
@@ -52,7 +59,7 @@ export default function NotificationPage() {
     fetchNotifications();
   }, []);
 
-  // 🔹 Helper: get emoji label based on notification type
+  // 🔹 Label helper
   const getTypeLabel = (type) => {
     switch (type) {
       case "follow":
@@ -65,10 +72,68 @@ export default function NotificationPage() {
         return "↩ Reply";
       case "post":
         return "📰 Post";
+      case "send_post":
+        return "📨 Sent Post";
       case "chat":
         return "💬 Chat";
+      case "event":
+        return "🎉 Event";
+      case "repost":
+        return "🔁 Repost";
       default:
         return "🔔 Notification";
+    }
+  };
+
+  // 🔹 Handle navigation
+  const handleNotificationClick = (notif) => {
+    console.log("Clicked notification:", notif);
+
+    if (notif.link) {
+      navigate(notif.link);
+      return;
+    }
+
+    const { type, sender, eventId } = notif;
+    const postId =
+      notif.postId?._id ||
+      notif.post?._id ||
+      (typeof notif.postId === "string" ? notif.postId : null);
+
+    // ✅ Fix: send_post redirects to the single post page
+    if (type === "send_post" && postId) {
+      navigate(`/post/${postId}`);
+      return;
+    }
+
+    const postRelated = ["post", "like", "comment", "reply", "repost"];
+    if (postRelated.includes(type)) {
+      if (postId) {
+        navigate(`/post/${postId}`);
+        return;
+      } else if (sender?._id) {
+        navigate(`/profile/${sender._id}`);
+        return;
+      }
+    }
+
+    switch (type) {
+      case "follow":
+        if (sender?._id) navigate(`/profile/${sender._id}`);
+        break;
+
+      case "chat":
+        if (sender?._id) navigate(`/chat/${sender._id}`);
+        break;
+
+      case "event":
+        if (eventId?._id) navigate(`/events/${eventId._id}`);
+        else if (eventId) navigate(`/events/${eventId}`);
+        break;
+
+      default:
+        console.warn("No redirection defined for:", type);
+        break;
     }
   };
 
@@ -78,31 +143,42 @@ export default function NotificationPage() {
     <div className="min-h-screen bg-gray-50">
       <LinkedInHeader />
       <div className="max-w-3xl mx-auto p-4">
-        <h2 className="text-2xl font-bold mb-4">Notifications</h2>
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Notifications</h2>
 
         {notifications.length === 0 ? (
-          <p className="text-muted-foreground">No notifications yet.</p>
+          <p className="text-gray-500 text-sm italic">No notifications yet.</p>
         ) : (
           <div className="grid gap-4">
             {notifications.map((notif) => (
               <Card
                 key={notif._id}
-                className={`transition-colors ${
-                  notif.read ? "bg-gray-100" : "bg-yellow-100"
+                onClick={() => handleNotificationClick(notif)}
+                className={`cursor-pointer transition-transform duration-200 hover:scale-[1.01] ${
+                  notif.read ? "bg-gray-100" : "bg-yellow-50"
                 }`}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold">
-                      {notif.sender?.username || "Unknown"}
+                    <h3 className="font-semibold text-gray-800">
+                      {notif.sender?.username || "Unknown User"}
                     </h3>
                     <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
                       {getTypeLabel(notif.type)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-800">{notif.text}</p>
-                  <span className="block text-xs text-gray-500 mt-1">
-                    {new Date(notif.createdAt).toLocaleString()}
+
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {notif.text || "You have a new notification."}
+                  </p>
+
+                  <span className="block text-xs text-gray-500 mt-2">
+                    {new Date(notif.createdAt).toLocaleString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </span>
                 </CardContent>
               </Card>

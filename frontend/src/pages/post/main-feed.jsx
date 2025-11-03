@@ -11,7 +11,6 @@ import {
   Edit,
   Trash2,
   Plus,
-  Heart,
 } from "lucide-react";
 import LikeButton from "./LikeButton";
 import CommentsSection from "./CommentsSection";
@@ -38,7 +37,6 @@ export function MainFeed() {
 
   const navigate = useNavigate();
 
-  // Fetch user + posts
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -72,7 +70,6 @@ export function MainFeed() {
     fetchData();
   }, []);
 
-  // Follow/Unfollow
   const handleFollowToggle = async (userId) => {
     try {
       const isFollowing = followingUsers.includes(userId);
@@ -92,7 +89,6 @@ export function MainFeed() {
     }
   };
 
-  // Save post (create/edit)
   const handleSavePost = async () => {
     if (!content.trim() && !imageFile && !editMode) {
       alert("Please write something or upload an image.");
@@ -153,7 +149,7 @@ export function MainFeed() {
         withCredentials: true,
       });
       setPosts(posts.filter((p) => p._id !== id));
-      alert("🗑️ Post deleted!");
+      alert("🗑 Post deleted!");
     } catch (err) {
       console.error("Delete failed:", err);
     }
@@ -184,7 +180,6 @@ export function MainFeed() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* Floating Create Button */}
       {(currentUser?.role === "alumni" ||
         currentUser?.role === "student" ||
         currentUser?.role === "admin") && (
@@ -196,7 +191,6 @@ export function MainFeed() {
         </Button>
       )}
 
-      {/* Create/Edit Modal */}
       <AnimatePresence>
         {showPopup && (
           <motion.div
@@ -212,7 +206,7 @@ export function MainFeed() {
               className="bg-white rounded-3xl p-6 w-[30rem] shadow-2xl border border-gray-100"
             >
               <h2 className="text-2xl font-semibold mb-4 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {editMode ? "Edit Your Post ✏️" : "Create New Post 🪶"}
+                {editMode ? "Edit Your Post ✏" : "Create New Post 🪶"}
               </h2>
               <input
                 type="text"
@@ -267,7 +261,6 @@ export function MainFeed() {
         )}
       </AnimatePresence>
 
-      {/* Posts Feed */}
       <AnimatePresence>
         {posts.map((post) => (
           <motion.div
@@ -278,7 +271,6 @@ export function MainFeed() {
           >
             <Card className="rounded-3xl border border-gray-200 bg-white shadow-lg hover:shadow-2xl hover:border-blue-200 transition-all duration-300 mb-6 overflow-hidden">
               <CardContent className="p-0">
-                {/* Header */}
                 <div className="p-5 flex items-start justify-between bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50">
                   <div className="flex items-start gap-3">
                     <img
@@ -297,14 +289,46 @@ export function MainFeed() {
                       >
                         {post.author?.username}
                       </h3>
-                      <p className="text-sm text-gray-700 mt-1">{post.content}</p>
+
+                      {/* 🔁 Repost info */}
+                      {post.repostFrom && (
+                        <p className="text-xs text-gray-600 italic mt-1">
+                          🔁 Reposted from{" "}
+                          <span
+                            className="text-blue-600 hover:underline cursor-pointer"
+                            onClick={() =>
+                              navigate(`/profile/${post.repostFrom.author?._id}`)
+                            }
+                          >
+                            {post.repostFrom.author?.username || "Unknown User"}
+                          </span>
+                          {post.repostFrom.content && (
+                            <>
+                              :{" "}
+                              <span
+                                className="text-gray-800 cursor-pointer hover:underline"
+                                onClick={() =>
+                                  navigate(`/post/${post.repostFrom._id}`)
+                                }
+                              >
+                                {post.repostFrom.content.length > 50
+                                  ? post.repostFrom.content.slice(0, 50) + "..."
+                                  : post.repostFrom.content}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      )}
+
+                      <p className="text-sm text-gray-700 mt-1">
+                        {post.content}
+                      </p>
                       <span className="text-xs text-gray-500 mt-1 block">
                         {new Date(post.createdAt).toLocaleString()}
                       </span>
                     </div>
                   </div>
 
-                  {/* Menu */}
                   <div className="flex items-start gap-2">
                     {post.author?._id !== currentUser?._id && (
                       <Button
@@ -360,7 +384,6 @@ export function MainFeed() {
                   </div>
                 </div>
 
-                {/* Image */}
                 {post.image_url && (
                   <img
                     src={post.image_url}
@@ -371,7 +394,6 @@ export function MainFeed() {
 
                 <Separator className="my-2" />
 
-                {/* Actions */}
                 <div className="px-8 py-3 flex items-center justify-between text-gray-700">
                   <LikeButton
                     post={post}
