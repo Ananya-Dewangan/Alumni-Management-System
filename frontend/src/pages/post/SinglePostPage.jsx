@@ -25,14 +25,24 @@ export default function SinglePost() {
         });
         setCurrentUser(me.data);
 
-        const [postRes, followRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/posts/${id}`, {
-            withCredentials: true,
-          }),
-          axios.get("http://localhost:5000/api/follow/following", {
-            withCredentials: true,
-          }),
-        ]);
+        let postRes;
+        try {
+          postRes = await axios.get(
+            `http://localhost:5000/api/posts/${id}`,
+            { withCredentials: true }
+          );
+        } catch (err) {
+          if (err.response && err.response.status === 404) {
+            navigate("/error");
+            return;
+          }
+          throw err;
+        }
+
+        const followRes = await axios.get(
+          "http://localhost:5000/api/follow/following",
+          { withCredentials: true }
+        );
 
         setPost(postRes.data);
         setFollowingUsers(followRes.data.following.map((u) => u._id));
@@ -44,7 +54,7 @@ export default function SinglePost() {
       }
     };
     fetchPost();
-  }, [id]);
+  }, [id, navigate]);
 
   const handleFollowToggle = async (userId) => {
     try {
@@ -65,13 +75,13 @@ export default function SinglePost() {
 
   const handleRepost = async () => {
     try {
-      const res = await axios.post(
+      await axios.post(
         `http://localhost:5000/api/posts/repost/${post._id}`,
         {},
         { withCredentials: true }
       );
       alert("🔁 Reposted successfully!");
-      navigate(`/post/${res.data._id}`);
+      navigate("/feed");
     } catch (err) {
       console.error("Repost failed:", err);
     }
@@ -80,67 +90,65 @@ export default function SinglePost() {
   if (!post) return <LinkedInLoadingScreen />;
 
   return (
-    <div className="min-h-screen bg-white py-10 px-4">
-      <div className="max-w-3xl mx-auto">
-        <Card className="rounded-3xl border border-gray-200 bg-white shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-          <CardContent className="p-0">
-            {/* Header */}
-            <div className="p-5 flex items-start justify-between bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50">
-              <div className="flex items-start gap-3">
-                <img
-                  src={
-                    post.author?.profilePic ||
-                    "https://www.w3schools.com/w3images/avatar3.png"
-                  }
-                  alt={post.author?.username}
-                  className="w-14 h-14 rounded-full object-cover border border-gray-300 cursor-pointer"
+    <div className="max-w-3xl mx-auto px-4 py-10">
+      <Card className="rounded-3xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+        <CardContent className="p-0">
+          <div className="p-6 flex items-start justify-between bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50">
+            <div className="flex items-start gap-3">
+              <img
+                src={
+                  post.author?.profilePic ||
+                  "https://www.w3schools.com/w3images/avatar3.png"
+                }
+                alt={post.author?.username}
+                className="w-14 h-14 rounded-full object-cover border border-gray-300 cursor-pointer"
+                onClick={() => navigate(`/profile/${post.author?._id}`)}
+              />
+              <div>
+                <h3
+                  className="font-semibold text-gray-900 hover:text-blue-700 cursor-pointer text-lg"
                   onClick={() => navigate(`/profile/${post.author?._id}`)}
-                />
-                <div>
-                  <h3
-                    className="font-semibold text-gray-900 hover:text-blue-700 cursor-pointer text-lg"
-                    onClick={() => navigate(`/profile/${post.author?._id}`)}
-                  >
-                    {post.author?.username}
-                  </h3>
+                >
+                  {post.author?.username}
+                </h3>
 
-                  {/* 🔁 Show repost info if applicable */}
-                  {post.repostFrom && (
-                    <p className="text-xs text-gray-600 italic mt-1">
-                      🔁 Reposted from{" "}
-                      <span
-                        className="text-blue-600 hover:underline cursor-pointer"
-                        onClick={() =>
-                          navigate(`/profile/${post.repostFrom.author?._id}`)
-                        }
-                      >
-                        {post.repostFrom.author?.username || "Unknown User"}
-                      </span>
-                      {post.repostFrom.content && (
-                        <>
-                          :{" "}
-                          <span
-                            className="text-gray-800 cursor-pointer hover:underline"
-                            onClick={() =>
-                              navigate(`/post/${post.repostFrom._id}`)
-                            }
-                          >
-                            {post.repostFrom.content.length > 50
-                              ? post.repostFrom.content.slice(0, 50) + "..."
-                              : post.repostFrom.content}
-                          </span>
-                        </>
-                      )}
-                    </p>
-                  )}
+                {post.repostFrom && (
+                  <p className="text-xs text-gray-600 italic mt-1">
+                    🔁 Reposted from{" "}
+                    <span
+                      className="text-blue-600 hover:underline cursor-pointer"
+                      onClick={() =>
+                        navigate(`/profile/${post.repostFrom.author?._id}`)
+                      }
+                    >
+                      {post.repostFrom.author?.username || "Unknown User"}
+                    </span>
+                    {post.repostFrom.content && (
+                      <>
+                        :{" "}
+                        <span
+                          className="text-gray-800 cursor-pointer hover:underline"
+                          onClick={() =>
+                            navigate(`/post/${post.repostFrom._id}`)
+                          }
+                        >
+                          {post.repostFrom.content.length > 50
+                            ? post.repostFrom.content.slice(0, 50) + "..."
+                            : post.repostFrom.content}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                )}
 
-                  <p className="text-sm text-gray-700 mt-2">{post.content}</p>
-                  <span className="text-xs text-gray-500 mt-1 block">
-                    {new Date(post.createdAt).toLocaleString()}
-                  </span>
-                </div>
+                <p className="text-sm text-gray-700 mt-1">{post.content}</p>
+                <span className="text-xs text-gray-500 mt-1 block">
+                  {new Date(post.createdAt).toLocaleString()}
+                </span>
               </div>
+            </div>
 
+            <div className="flex items-start gap-2">
               {post.author?._id !== currentUser?._id && (
                 <Button
                   size="sm"
@@ -157,50 +165,52 @@ export default function SinglePost() {
                 </Button>
               )}
             </div>
+          </div>
 
-            {post.image_url && (
-              <img
-                src={post.image_url}
-                alt="post"
-                className="w-full max-h-[500px] object-cover"
-              />
-            )}
+          {post.image_url && (
+            <img
+              src={post.image_url}
+              alt="post"
+              className="w-full max-h-[500px] object-cover"
+            />
+          )}
 
-            <Separator className="my-2" />
+          <Separator className="my-2" />
 
-            <div className="px-8 py-3 flex items-center justify-between text-gray-700">
-              <LikeButton
-                post={post}
-                setPosts={(updated) => setPost(updated)} // maintain compatibility
-                likeStatus={likeStatus}
-                setLikeStatus={setLikeStatus}
-              />
-              <button
-                onClick={() => navigate(`/send-post/${post._id}`)}
-                className="flex items-center gap-2 text-sm hover:text-pink-600"
-              >
-                <Send className="w-4 h-4" /> Send
-              </button>
-              <button
-                onClick={handleRepost}
-                className="flex items-center gap-2 text-sm hover:text-purple-600"
-              >
-                <Repeat2 className="w-4 h-4" /> Repost
-              </button>
-              <button
-                onClick={() => navigate(`/post/${post._id}#comments`)}
-                className="flex items-center gap-2 text-sm hover:text-blue-600"
-              >
-                <MessageCircle className="w-4 h-4" /> Comment
-              </button>
-            </div>
+          <div className="px-8 py-3 flex items-center justify-between text-gray-700">
+            <LikeButton
+              post={post}
+              setPosts={() => {}}
+              likeStatus={likeStatus}
+              setLikeStatus={setLikeStatus}
+            />
+            <button
+              onClick={() =>
+                document.getElementById("comments").scrollIntoView()
+              }
+              className="flex items-center gap-2 text-sm hover:text-blue-600"
+            >
+              <MessageCircle className="w-4 h-4" /> Comment
+            </button>
+            <button
+              onClick={handleRepost}
+              className="flex items-center gap-2 text-sm hover:text-purple-600"
+            >
+              <Repeat2 className="w-4 h-4" /> Repost
+            </button>
+            <button
+              onClick={() => navigate(`/send-post/${post._id}`)}
+              className="flex items-center gap-2 text-sm hover:text-pink-600"
+            >
+              <Send className="w-4 h-4" /> Send
+            </button>
+          </div>
 
-            <div className="mt-2 px-6 pb-4">
-              <CommentsSection postId={post._id} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <div id="comments" className="mt-2 px-6 pb-4">
+            <CommentsSection postId={post._id} />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

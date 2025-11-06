@@ -1,3 +1,4 @@
+// server.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -19,7 +20,6 @@ import adminRoutes from "./routes/adminRoutes.js";
 import sendPostRoutes from "./routes/sendPostRoutes.js";
 import Message from "./models/Message.js";
 import Notification from "./models/Notification.js";
-import { authMiddleware } from "./middleware/authMiddleware.js";
 
 dotenv.config();
 connectDB();
@@ -44,9 +44,11 @@ app.use(
     credentials: true,
   })
 );
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(express.json());
 app.use(cookieParser());
+
+// ✅ Serve uploaded images statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ✅ API Routes
 app.use("/api/auth", authRoutes);
@@ -57,42 +59,37 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/send-post", sendPostRoutes);
-app.use("/api/admin", adminRoutes); // ✅ Admin routes
+app.use("/api/admin", adminRoutes);
 
 // ✅ Socket.IO Events
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
-  // Join personal notification room
   socket.on("join_user", (userId) => {
     socket.join(userId);
     console.log(`👤 User ${userId} joined their personal room`);
   });
 
-  // Join specific chat room
   socket.on("join_chat", (chatId) => {
     socket.join(chatId);
     console.log(`💬 Socket ${socket.id} joined chat room ${chatId}`);
   });
 
-  // 💬 Handle chat messages
+  // 💬 Chat message handling
   socket.on("send_message", async (data) => {
     try {
       const { chatId, senderId, senderName, text, recipientId } = data;
-
       if (!chatId || !senderId || !recipientId) {
         console.error("❌ Missing required fields in send_message");
         return;
       }
 
-      // 💾 Save message in DB
       const savedMessage = await Message.create({
         chat: chatId,
         sender: senderId,
         text,
       });
 
-      // 📩 Emit message to all in the chat
       io.to(chatId).emit("receive_message", {
         chatId,
         senderId,
@@ -101,18 +98,15 @@ io.on("connection", (socket) => {
         createdAt: savedMessage.createdAt,
       });
 
-      // 🔔 Create and save chat notification
       const notif = new Notification({
         recipient: recipientId,
         sender: senderId,
         chatId,
         text: `💬 New message from ${senderName}`,
-        type: "chat", // ✅ REQUIRED FIELD FIXED
+        type: "chat",
       });
-
       await notif.save();
 
-      // 🚀 Emit notification to recipient in real time
       io.to(recipientId.toString()).emit("notification", {
         chatId,
         senderId,
@@ -121,7 +115,7 @@ io.on("connection", (socket) => {
         type: "chat",
       });
 
-      console.log(`📩 Message from ${senderId} → ${recipientId} saved & notified`);
+      console.log(`📩 Message ${senderId} → ${recipientId} saved & notified`);
     } catch (err) {
       console.error("💥 Error in send_message:", err);
     }
@@ -141,7 +135,6 @@ io.on("connection", (socket) => {
 
       await notif.save();
 
-      // Emit event notification to everyone
       io.emit("event_notification", {
         title,
         description,

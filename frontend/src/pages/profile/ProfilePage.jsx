@@ -200,48 +200,62 @@ export default function ProfilePage() {
   // -------------------------
   // Photo upload / remove
   // -------------------------
-  const handlePhotoChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("profilePic", file);
-    try {
-      setLoading(true);
-      const res = await axios.put("http://localhost:5000/api/profile/photo", formData, {
-        withCredentials: true,
-      });
-      setProfile((prev) => ({
-        ...prev,
-        profilePic: res.data.profilePic || prev.profilePic,
-      }));
-    } catch (err) {
-      console.error(err);
-      alert("Error updating photo");
-    } finally {
-      setLoading(false);
-    }
-  };
+ // -------------------------
+// Photo upload / remove
+// -------------------------
+const handlePhotoChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-  const handleRemovePhoto = async () => {
-    try {
-      setLoading(true);
-      await axios.delete("http://localhost:5000/api/profile/photo", {
-        withCredentials: true,
-      });
-      const defaultPic =
-        profile.gender === "female"
-          ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
-          : "https://www.w3schools.com/w3images/avatar3.png";
-      setProfile((prev) => ({ ...prev, profilePic: defaultPic }));
-      // keep alert for feedback
-      alert("Profile picture removed successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("Error removing profile picture");
-    } finally {
-      setLoading(false);
+  const formData = new FormData();
+  formData.append("photo", file); // must match upload.single("photo")
+
+  try {
+    setLoading(true);
+    const res = await axios.put("http://localhost:5000/api/profile/photo", formData, {
+      withCredentials: true,
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    // ✅ Use correct key and fallback if backend returns full URL
+    const newPic = res.data.profilePic || res.data.photo || "";
+    if (newPic) {
+      setProfile((prev) => ({ ...prev, profilePic: newPic }));
+      alert("Profile photo updated successfully!");
+    } else {
+      alert("Upload succeeded but response missing photo URL.");
     }
-  };
+  } catch (err) {
+    console.error("Upload error:", err);
+    alert("Error uploading photo");
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleRemovePhoto = async () => {
+  try {
+    setLoading(true);
+    const res = await axios.delete("http://localhost:5000/api/profile/photo", {
+      withCredentials: true,
+    });
+
+    // ✅ If backend returns success, reset to gender-based avatar
+    const defaultPic =
+      profile.gender === "female"
+        ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
+        : "https://www.w3schools.com/w3images/avatar3.png";
+
+    setProfile((prev) => ({ ...prev, profilePic: defaultPic }));
+    alert(res.data.message || "Profile picture removed successfully!");
+  } catch (err) {
+    console.error("Remove error:", err);
+    alert("Error removing profile picture");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // -------------------------
   // Save profile
@@ -830,7 +844,9 @@ export default function ProfilePage() {
             </div>
 
             {/* ---------------- RIGHT: Profile Preview (feed sidebar) ---------------- */}
-            <div className="space-y-4">
+            <div className="space-y-4 fixed top-20 right-40 w-80">
+
+
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
                 <div className="h-28 bg-gradient-to-r from-blue-500 to-purple-500 " />
 
@@ -838,11 +854,18 @@ export default function ProfilePage() {
                   <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 group">
                     <div className="relative">
                       <img
-                        src={profile.profilePic || "https://www.w3schools.com/w3images/avatar3.png"}
-                        alt="Profile"
-                        className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-md"
-                        onClick={() => document.getElementById("fileInput")?.click()}
-                      />
+  src={
+    profile?.profilePic && profile.profilePic.trim() !== ""
+      ? profile.profilePic
+      : profile.gender === "female"
+      ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
+      : "https://cdn-icons-png.freepik.com/256/147/147144.png?semt=ais_white_label"
+  }
+  alt={profile?.username || "Profile"}
+  className="w-32 h-32 rounded-full object-cover border"
+/>
+
+
 
                       {/* hover overlay (pencil & trash icons) */}
                       <div className="absolute inset-0 rounded-full bg-black/25 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">

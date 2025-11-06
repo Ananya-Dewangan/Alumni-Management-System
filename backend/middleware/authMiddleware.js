@@ -1,45 +1,104 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-// 🔹 Regular Authentication Middleware
+// 🔹 Regular User Authentication Middleware
 export const authMiddleware = async (req, res, next) => {
   try {
-    const token = req.cookies.token;
-    if (!token) return res.status(401).json({ msg: "No auth token" });
+    const token =
+      req.cookies.token || req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No auth token provided" });
+    }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!decoded) return res.status(401).json({ msg: "Token verification failed" });
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      if (err.name === "TokenExpiredError") {
+        return res
+          .status(401)
+          .json({ success: false, message: "Session expired. Please log in again." });
+      }
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid auth token" });
+    }
+
+    if (!decoded || !decoded.id) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid token payload" });
+    }
 
     const user = await User.findById(decoded.id).select("-password");
-    if (!user) return res.status(404).json({ msg: "User not found" });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
 
     req.user = user;
     next();
   } catch (err) {
     console.error("Auth Middleware Error:", err);
-    res.status(500).json({ msg: "Server error in auth middleware" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error in auth middleware" });
   }
 };
 
 // 🔹 Admin Authentication Middleware
 export const adminAuthMiddleware = async (req, res, next) => {
   try {
-    const token = req.cookies.token;
-    if (!token) return res.status(401).json({ msg: "No auth token" });
+    const token =
+      req.cookies.token || req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No auth token provided" });
+    }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!decoded) return res.status(401).json({ msg: "Token verification failed" });
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      if (err.name === "TokenExpiredError") {
+        return res
+          .status(401)
+          .json({ success: false, message: "Session expired. Please log in again." });
+      }
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid auth token" });
+    }
+
+    if (!decoded || !decoded.id) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid token payload" });
+    }
 
     const user = await User.findById(decoded.id).select("-password");
-    if (!user) return res.status(404).json({ msg: "User not found" });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
 
-    if (user.role !== "admin")
-      return res.status(403).json({ msg: "Access denied: Admins only" });
+    if (user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied: Admins only" });
+    }
 
     req.user = user;
     next();
   } catch (err) {
     console.error("Admin Auth Middleware Error:", err);
-    res.status(500).json({ msg: "Server error in admin auth middleware" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error in admin auth middleware" });
   }
 };

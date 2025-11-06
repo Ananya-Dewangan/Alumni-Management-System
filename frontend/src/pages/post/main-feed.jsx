@@ -290,14 +290,15 @@ export function MainFeed() {
                         {post.author?.username}
                       </h3>
 
-                      {/* 🔁 Repost info */}
                       {post.repostFrom && (
                         <p className="text-xs text-gray-600 italic mt-1">
                           🔁 Reposted from{" "}
                           <span
                             className="text-blue-600 hover:underline cursor-pointer"
                             onClick={() =>
-                              navigate(`/profile/${post.repostFrom.author?._id}`)
+                              navigate(
+                                `/profile/${post.repostFrom.author?._id}`
+                              )
                             }
                           >
                             {post.repostFrom.author?.username || "Unknown User"}
@@ -320,9 +321,7 @@ export function MainFeed() {
                         </p>
                       )}
 
-                      <p className="text-sm text-gray-700 mt-1">
-                        {post.content}
-                      </p>
+                      <p className="text-sm text-gray-700 mt-1">{post.content}</p>
                       <span className="text-xs text-gray-500 mt-1 block">
                         {new Date(post.createdAt).toLocaleString()}
                       </span>

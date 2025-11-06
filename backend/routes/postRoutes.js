@@ -1,4 +1,3 @@
-// routes/postRoutes.js
 import express from "express";
 import fs from "fs";
 import Post from "../models/Post.js";
@@ -18,6 +17,10 @@ router.get("/", async (req, res) => {
     const posts = await Post.find()
       .populate("author", "username profilePic role")
       .populate("comments.user", "username profilePic role")
+      .populate({
+        path: "repostFrom",
+        populate: { path: "author", select: "username profilePic role" },
+      })
       .sort({ createdAt: -1 });
 
     res.json(posts);
@@ -28,13 +31,12 @@ router.get("/", async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📌 CREATE new post (✅ all roles: alumni, admin, student)
+   📌 CREATE new post
 ----------------------------------------------------------- */
 router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
   try {
     let imageUrl = null;
 
-    // ✅ Upload image if provided
     if (req.file) {
       try {
         const cloudRes = await uploadOnCloudinary(req.file.path);
@@ -48,7 +50,6 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
       }
     }
 
-    // ✅ Create new post
     const newPost = new Post({
       author: req.user._id,
       title: req.body.title,
@@ -59,15 +60,8 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
     const savedPost = await newPost.save();
     await savedPost.populate("author", "username profilePic role");
 
-    // ✅ Notify followers of the author
-    const author = await User.findById(req.user._id).populate(
-      "followers",
-      "_id username"
-    );
-
+    const author = await User.findById(req.user._id).populate("followers", "_id username");
     if (author && author.followers.length > 0) {
-      const io = req.app.get("io");
-
       const notifications = author.followers.map((follower) =>
         createNotification({
           recipient: follower._id,
@@ -80,7 +74,7 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
 
       await Promise.all(notifications);
 
-      // 🔹 Emit socket event to followers
+      const io = req.app.get("io");
       author.followers.forEach((f) => {
         io.to(f._id.toString()).emit("newNotification", {
           message: `${req.user.username} posted a new update.`,
@@ -100,10 +94,7 @@ router.post("/", authMiddleware, upload.single("image"), async (req, res) => {
 ----------------------------------------------------------- */
 router.put("/like/:postId", authMiddleware, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId).populate(
-      "author",
-      "username"
-    );
+    const post = await Post.findById(req.params.postId).populate("author", "username");
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     const userId = req.user._id.toString();
@@ -112,7 +103,6 @@ router.put("/like/:postId", authMiddleware, async (req, res) => {
     if (index === -1) {
       post.likes.push(req.user._id);
 
-      // ✅ Notify post author (not self)
       if (post.author._id.toString() !== userId) {
         await createNotification({
           recipient: post.author._id,
@@ -123,7 +113,7 @@ router.put("/like/:postId", authMiddleware, async (req, res) => {
         });
       }
     } else {
-      post.likes.splice(index, 1); // Unlike
+      post.likes.splice(index, 1);
     }
 
     await post.save();
@@ -163,7 +153,6 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
 
       await post.save();
 
-      // 🔔 Notify original commenter if not self
       if (parentComment.user.toString() !== req.user._id.toString()) {
         await createNotification({
           recipient: parentComment.user,
@@ -174,7 +163,6 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
         });
       }
     } else {
-      // 🔹 New comment
       post.comments.push({
         user: req.user._id,
         text: text.trim(),
@@ -182,7 +170,6 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
 
       await post.save();
 
-      // 🔔 Notify post author if not self
       if (post.author._id.toString() !== req.user._id.toString()) {
         await createNotification({
           recipient: post.author._id,
@@ -203,126 +190,28 @@ router.post("/comment/:postId", authMiddleware, async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📌 GET comments with pagination
------------------------------------------------------------ */
-router.get("/comment/:postId", authMiddleware, async (req, res) => {
-  try {
-    const { page = 1, limit = 5 } = req.query;
-    const post = await Post.findById(req.params.postId).populate(
-      "comments.user",
-      "username profilePic role"
-    );
-
-    if (!post) return res.status(404).json({ message: "Post not found" });
-
-    const sortedComments = [...post.comments].sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
-
-    const startIndex = (page - 1) * limit;
-    const paginated = sortedComments.slice(
-      startIndex,
-      startIndex + parseInt(limit)
-    );
-
-    res.json({
-      comments: paginated,
-      total: post.comments.length,
-    });
-  } catch (err) {
-    console.error("GET /comment/:postId error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/* -----------------------------------------------------------
-   📌 EDIT post (✅ title, content & image)
------------------------------------------------------------ */
-router.put("/:id", authMiddleware, upload.single("image"), async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: "Post not found" });
-
-    if (post.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    const { title, content } = req.body;
-    post.title = title || post.title;
-    post.content = content || post.content;
-
-    // ✅ Update image if provided
-    if (req.file) {
-      try {
-        const cloudRes = await uploadOnCloudinary(req.file.path);
-        if (cloudRes) {
-          post.image_url = cloudRes.secure_url;
-          fs.unlinkSync(req.file.path);
-        }
-      } catch (uploadErr) {
-        console.error("Image update failed:", uploadErr);
-        return res.status(500).json({ message: "Image upload failed" });
-      }
-    }
-
-    await post.save();
-    await post.populate("author", "username profilePic role");
-    res.json(post);
-  } catch (err) {
-    console.error("PUT /posts/:id error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/* -----------------------------------------------------------
-   📌 DELETE post (only author)
------------------------------------------------------------ */
-router.delete("/:id", authMiddleware, async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: "Post not found" });
-
-    if (post.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    await Post.findByIdAndDelete(req.params.id);
-    res.json({ message: "Post deleted successfully" });
-  } catch (err) {
-    console.error("DELETE /posts/:id error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/* -----------------------------------------------------------
-   📌 REPOST (reference another post + notify author)
+   📌 REPOST (reference another post)
 ----------------------------------------------------------- */
 router.post("/repost/:id", authMiddleware, async (req, res) => {
   try {
-    const originalPost = await Post.findById(req.params.id).populate(
-      "author",
-      "username profilePic role"
-    );
-    if (!originalPost)
-      return res.status(404).json({ message: "Original post not found" });
+    const repostFrom = await Post.findById(req.params.id).populate("author", "username profilePic role");
+    if (!repostFrom) return res.status(404).json({ message: "Original post not found" });
 
-    // ✅ Create a new post with reference to the original
     const newPost = new Post({
       author: req.user._id,
-      title: originalPost.title,
-      content: originalPost.content,
-      image_url: originalPost.image_url,
+      title: repostFrom.title,
+      content: repostFrom.content,
+      image_url: repostFrom.image_url,
       isRepost: true,
-      originalPost: originalPost._id,
+      repostFrom: repostFrom._id,
     });
 
     const savedRepost = await newPost.save();
     await savedRepost.populate("author", "username profilePic role");
 
-    // ✅ Notify the original author (if not self)
-    if (originalPost.author._id.toString() !== req.user._id.toString()) {
+    if (repostFrom.author._id.toString() !== req.user._id.toString()) {
       await createNotification({
-        recipient: originalPost.author._id,
+        recipient: repostFrom.author._id,
         sender: req.user._id,
         type: "repost",
         postId: savedRepost._id,
@@ -330,7 +219,7 @@ router.post("/repost/:id", authMiddleware, async (req, res) => {
       });
 
       const io = req.app.get("io");
-      io.to(originalPost.author._id.toString()).emit("newNotification", {
+      io.to(repostFrom.author._id.toString()).emit("newNotification", {
         message: `${req.user.username} reposted your post.`,
       });
     }
@@ -343,7 +232,7 @@ router.post("/repost/:id", authMiddleware, async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📩 SEND post to another user (via DM)
+   📌 SEND post to another user (DM)
 ----------------------------------------------------------- */
 router.post("/send/:postId", authMiddleware, async (req, res) => {
   try {
@@ -352,8 +241,7 @@ router.post("/send/:postId", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Recipient username required" });
 
     const recipient = await User.findOne({ username: recipientUsername });
-    if (!recipient)
-      return res.status(404).json({ message: "Recipient not found" });
+    if (!recipient) return res.status(404).json({ message: "Recipient not found" });
 
     const post = await Post.findById(req.params.postId);
     if (!post) return res.status(404).json({ message: "Post not found" });
@@ -379,19 +267,65 @@ router.post("/send/:postId", authMiddleware, async (req, res) => {
 });
 
 /* -----------------------------------------------------------
-   📍 Get a single post by ID
+   📌 GET single post by ID
 ----------------------------------------------------------- */
 router.get("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
       .populate("author", "username profilePic role")
-      .populate("comments.user", "username profilePic role");
+      .populate("comments.user", "username profilePic role")
+      .populate({
+        path: "repostFrom",
+        populate: { path: "author", select: "username profilePic role" },
+      });
 
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     res.json(post);
   } catch (err) {
     console.error("Error fetching post:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* -----------------------------------------------------------
+   📌 DELETE a post by ID
+----------------------------------------------------------- */
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // ✅ Only allow the author (or admin) to delete
+    if (
+      post.author.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({ message: "Not authorized to delete this post" });
+    }
+
+    // ✅ Delete post image from Cloudinary if it exists
+    if (post.image_url && post.image_url.includes("cloudinary.com")) {
+      try {
+        const publicId = post.image_url
+          .split("/")
+          .pop()
+          .split(".")[0];
+        const cloudinary = await import("cloudinary");
+        await cloudinary.v2.uploader.destroy(publicId);
+      } catch (cloudErr) {
+        console.error("Cloudinary delete failed:", cloudErr);
+      }
+    }
+
+    await post.deleteOne();
+
+    res.json({ message: "Post deleted successfully" });
+  } catch (err) {
+    console.error("DELETE /posts/:id error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });

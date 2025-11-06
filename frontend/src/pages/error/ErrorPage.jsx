@@ -1,6 +1,6 @@
 // ErrorPage.jsx
 import { Link } from "react-router-dom";
-import { LinkedInHeader } from "../../components/linkedin-header";
+import { LinkedInHeader } from "../../components/Linkedin-header";
 
 export default function ErrorPage() {
   return (
