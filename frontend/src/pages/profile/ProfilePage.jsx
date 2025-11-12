@@ -9,6 +9,7 @@ import LinkedInLoadingScreen from "../../LinkedInLoadingScreen";
 import { LinkedInHeader } from "../../components/Linkedin-header";
 import { Country, State, City } from "country-state-city";
 import { Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function ProfilePage() {
   // ---------- State ----------
@@ -18,6 +19,7 @@ export default function ProfilePage() {
     role: "",
     firstname: "",
     lastname: "",
+    contact_no: "",
     gender: "",
     course: "",
     department: "",
@@ -57,6 +59,9 @@ export default function ProfilePage() {
 
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
+  const [showEmailRequest, setShowEmailRequest] = useState(false);
+  const [requestedEmail, setRequestedEmail] = useState("");
+  const [requestReason, setRequestReason] = useState("");
 
   // keeps track of which experience indexes are expanded
   const [expanded, setExpanded] = useState([]); // array of indexes
@@ -103,6 +108,24 @@ export default function ProfilePage() {
   // -------------------------
   // Main profile handlers
   // -------------------------
+const sendEmailChangeRequest = async () => {
+  try {
+    if (!requestedEmail) return alert("Please provide the new email");
+    await axios.post(
+      "http://localhost:5000/api/email-change-requests",
+      { requestedEmail, reason: requestReason },
+      { withCredentials: true }
+    );
+    alert("Email change request sent to admin!");
+    setShowEmailRequest(false);
+    setRequestedEmail("");
+    setRequestReason("");
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.message || "Error submitting request");
+  }
+};
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -200,61 +223,61 @@ export default function ProfilePage() {
   // -------------------------
   // Photo upload / remove
   // -------------------------
- // -------------------------
-// Photo upload / remove
-// -------------------------
-const handlePhotoChange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    // backend expects "photo" (upload.single("photo"))
+    formData.append("photo", file);
+    try {
+      setLoading(true);
+      const res = await axios.put("http://localhost:5000/api/profile/photo", formData, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-  const formData = new FormData();
-  formData.append("photo", file); // must match upload.single("photo")
-
-  try {
-    setLoading(true);
-    const res = await axios.put("http://localhost:5000/api/profile/photo", formData, {
-      withCredentials: true,
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    // ✅ Use correct key and fallback if backend returns full URL
-    const newPic = res.data.profilePic || res.data.photo || "";
-    if (newPic) {
-      setProfile((prev) => ({ ...prev, profilePic: newPic }));
-      alert("Profile photo updated successfully!");
-    } else {
-      alert("Upload succeeded but response missing photo URL.");
+      // prefer res.data.photo (backend full URL) then res.data.profilePic, fallback to previous
+      const newPic = (res.data && (res.data.photo || res.data.profilePic)) || "";
+      if (newPic) {
+        setProfile((prev) => ({
+          ...prev,
+          profilePic: newPic,
+        }));
+        alert("Profile photo updated successfully!");
+      } else {
+        // try other keys or keep previous
+        setProfile((prev) => ({ ...prev }));
+        alert("Upload completed but no photo URL returned.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating photo");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Upload error:", err);
-    alert("Error uploading photo");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-const handleRemovePhoto = async () => {
-  try {
-    setLoading(true);
-    const res = await axios.delete("http://localhost:5000/api/profile/photo", {
-      withCredentials: true,
-    });
+  const handleRemovePhoto = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.delete("http://localhost:5000/api/profile/photo", {
+        withCredentials: true,
+      });
 
-    // ✅ If backend returns success, reset to gender-based avatar
-    const defaultPic =
-      profile.gender === "female"
-        ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
-        : "https://www.w3schools.com/w3images/avatar3.png";
+      const defaultPic =
+        profile.gender === "female"
+          ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
+          : "https://www.w3schools.com/w3images/avatar3.png";
 
-    setProfile((prev) => ({ ...prev, profilePic: defaultPic }));
-    alert(res.data.message || "Profile picture removed successfully!");
-  } catch (err) {
-    console.error("Remove error:", err);
-    alert("Error removing profile picture");
-  } finally {
-    setLoading(false);
-  }
-};
+      setProfile((prev) => ({ ...prev, profilePic: defaultPic }));
+      alert(res.data?.message || "Profile picture removed successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Error removing profile picture");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   // -------------------------
@@ -515,11 +538,55 @@ const handleRemovePhoto = async () => {
                     </div>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input value={profile.username} readOnly className="bg-gray-100" />
-                    <Input value={profile.email} readOnly className="bg-gray-100" />
-                    <Input name="firstname" value={profile.firstname} onChange={handleChange} placeholder="First name" />
+              {/* Username + Email + Request Change */}
+              <div className="mt-5 mb-4 flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
+                {/* Username */}
+                <div className="flex-1">
+                  <Input
+                    value={profile.username}
+                    readOnly
+                    className="bg-gray-100"
+                    placeholder="Username"
+                  />
+                </div>
+
+                    {/* Email + Request Button */}
+                    <div className="flex flex-1 items-center space-x-2">
+                      {profile.role === "admin" ? (
+                        <Input
+                          name="email"
+                          value={profile.email}
+                          onChange={handleChange}
+                          placeholder="Email"
+                        />
+                      ) : (
+                        <>
+                          <Input
+                            value={profile.email}
+                            readOnly
+                            className="bg-gray-100"
+                            placeholder="Email"
+                          />
+                          <Button
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                            type="button"
+                            onClick={() => navigate("/email-change-request")}
+                          >
+                            Request Change
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input name="firstname" value={profile.firstname} onChange={handleChange} placeholder="First Name" />
                     <Input name="lastname" value={profile.lastname} onChange={handleChange} placeholder="Last name" />
+                  </div>
+
+                  {/* Add Contact No. for all roles */}
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input name="contact_no" value={profile.contact_no || ""} onChange={handleChange} placeholder="Contact Number" />
                   </div>
 
                   {/* course/dept */}
@@ -635,10 +702,12 @@ const handleRemovePhoto = async () => {
                     {profile.experience && profile.experience.length > 0 ? (
                       profile.experience.map((exp, idx) => {
                         const title = exp.jobTitle || exp.company || `Experience ${idx + 1}`;
-                        const subtitle = exp.company ? `${exp.company}` : "";
+
+                        const subtitle = exp.company ? exp.company : "";
                         const dateRange = exp.isCurrent || exp.currentlyWorking
-                          ? `${exp.startMonth || ""} ${exp.startYear || ""} - Present`
-                          : `${exp.startMonth || ""} ${exp.startYear || ""} ${exp.startYear ? "-" : ""} ${exp.endMonth || ""} ${exp.endYear || ""}`;
+  ? `${exp.startMonth || ""} ${exp.startYear || ""} - Present`
+  : `${exp.startMonth || ""} ${exp.startYear || ""}${exp.startYear ? " - " : ""}${exp.endMonth || ""} ${exp.endYear || ""}`;
+
                         return (
                           <div key={idx} className="bg-white border border-gray-100 rounded-lg shadow-sm overflow-hidden hover:shadow-md transition">
                             <div className="flex items-center justify-between p-4 cursor-pointer" onClick={() => toggleExpand(idx)}>
@@ -652,7 +721,8 @@ const handleRemovePhoto = async () => {
                                 <div className="transform transition-transform duration-200" aria-hidden>
                                   {/* chevron */}
                                   <svg
-                                    className={`w-5 h-5 ${isExpanded(idx) ? "rotate-180" : "rotate-0"}`}
+  className={`w-5 h-5 ${isExpanded(idx) ? "rotate-180" : "rotate-0"}`}
+
                                     viewBox="0 0 24 24"
                                     fill="none"
                                     xmlns="http://www.w3.org/2000/svg"
@@ -665,8 +735,9 @@ const handleRemovePhoto = async () => {
 
                             {/* Expandable content */}
                             <div
-                              className={`px-4 pb-4 transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${isExpanded(idx) ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"}`}
-                            >
+  className={`px-4 pb-4 transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${isExpanded(idx) ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"}`}
+>
+
                               <div className="grid md:grid-cols-2 gap-3 mt-3">
                                 <Input placeholder="Job Title" value={exp.jobTitle} onChange={(e) => handleExperienceChange(idx, "jobTitle", e.target.value)} />
                                 <Input placeholder="Company" value={exp.company} onChange={(e) => handleExperienceChange(idx, "company", e.target.value)} />
@@ -844,9 +915,7 @@ const handleRemovePhoto = async () => {
             </div>
 
             {/* ---------------- RIGHT: Profile Preview (feed sidebar) ---------------- */}
-            <div className="space-y-4 fixed top-20 right-40 w-80">
-
-
+            <div className="space-y-4 ">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
                 <div className="h-28 bg-gradient-to-r from-blue-500 to-purple-500 " />
 
@@ -854,18 +923,11 @@ const handleRemovePhoto = async () => {
                   <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 group">
                     <div className="relative">
                       <img
-  src={
-    profile?.profilePic && profile.profilePic.trim() !== ""
-      ? profile.profilePic
-      : profile.gender === "female"
-      ? "https://cdn-icons-png.freepik.com/256/6997/6997662.png?semt=ais_white_label"
-      : "https://cdn-icons-png.freepik.com/256/147/147144.png?semt=ais_white_label"
-  }
-  alt={profile?.username || "Profile"}
-  className="w-32 h-32 rounded-full object-cover border"
-/>
-
-
+                        src={profile.profilePic || "https://www.w3schools.com/w3images/avatar3.png"}
+                        alt="Profile"
+                        className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-md"
+                        onClick={() => document.getElementById("fileInput")?.click()}
+                      />
 
                       {/* hover overlay (pencil & trash icons) */}
                       <div className="absolute inset-0 rounded-full bg-black/25 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
@@ -903,41 +965,39 @@ const handleRemovePhoto = async () => {
                       </div>
                     )}
                     <div className="text-xs text-gray-500 mt-2 italic text-justify">
-  {profile.bio || "No bio available."}
-</div>
-
+               {profile.bio || "No bio available."}
+                </div>
 
                     <div className="mt-3 flex justify-center gap-3">
                       {profile.github_url && (
-  <a
-    href={profile.github_url}
-    target="_blank"
-    rel="noreferrer"
-    className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:shadow-md transition"
-  >
-    <img src="/github-mark.svg" alt="GitHub" className="w-4 h-4" />
-  </a>
-)}
+                        <a
+                          href={profile.github_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:shadow-md transition"
+                        >
+                          <img src="/github-mark.svg" alt="GitHub" className="w-4 h-4" />
+                        </a>
+                      )}
 
-{profile.linkedin_url && (
-  <a
-    href={profile.linkedin_url}
-    target="_blank"
-    rel="noreferrer"
-    className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:shadow-md transition"
-  >
-    {/* LinkedIn blue icon */}
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="w-5 h-5 text-[#0077B5]"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-    >
-      <path d="M4.98 3.5a2.5 2.5 0 11-.001 5.001A2.5 2.5 0 014.98 3.5zM3 9h4v12H3zM9 9h3.7v1.64h.05c.52-.98 1.8-2 3.7-2 4 0 4.7 2.63 4.7 6.05V21h-4v-5.22c0-1.25-.02-2.86-1.74-2.86-1.75 0-2.02 1.37-2.02 2.78V21H9V9z" />
-    </svg>
-  </a>
-)}
-
+                      {profile.linkedin_url && (
+                        <a
+                          href={profile.linkedin_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:shadow-md transition"
+                        >
+                          {/* LinkedIn blue icon */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-5 h-5 text-[#0077B5]"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                          >
+                            <path d="M4.98 3.5a2.5 2.5 0 11-.001 5.001A2.5 2.5 0 014.98 3.5zM3 9h4v12H3zM9 9h3.7v1.64h.05c.52-.98 1.8-2 3.7-2 4 0 4.7 2.63 4.7 6.05V21h-4v-5.22c0-1.25-.02-2.86-1.74-2.86-1.75 0-2.02 1.37-2.02 2.78V21H9V9z" />
+                          </svg>
+                        </a>
+                      )}
                     </div>
 
                     <div className="mt-3">

@@ -432,4 +432,6 @@ export function MainFeed() {
       </AnimatePresence>
     </div>
   );
+  
 }
+

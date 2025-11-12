@@ -14,6 +14,8 @@ import EventPage from "./pages/event/EventPage";
 import ErrorPage from "./pages/error/ErrorPage";
 import SendPostPage from "@/pages/post/SendPostPage";
 import SinglePostPage from "./pages/post/SinglePostPage";
+import EmailChangeRequestPage from "./pages/profile/EmailChangeRequestPage";
+
 
 // ✅ Import your new Admin Data Export page
 import AdminDataExport from "./pages/AdminDataExport";
@@ -30,6 +32,7 @@ export default function App() {
 
         {/* View others */}
         <Route path="/profile/:id" element={<ViewProfile />} />
+         <Route path="/email-change-request" element={<EmailChangeRequestPage />} />
 
         <Route path="/home" element={<Home />} />
         <Route path="/network" element={<MyNetwork />} />

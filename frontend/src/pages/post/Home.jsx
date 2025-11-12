@@ -1,180 +1,144 @@
+// frontend/src/pages/post/Home.jsx
 import { useEffect, useState } from "react";
 import axios from "axios";
-import LikeButton from "./LikeButton"
-import CommentsSection from "./CommentsSection"
+import { MainFeed } from "./main-feed"; // your existing MainFeed component
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 function Home() {
-    const [posts, setPosts] = useState([]);
-    const [showPopup, setShowPopup] = useState(false);
-    const [title, setTitle] = useState("");
-    const [content, setContent] = useState("");
-    const [imageFile, setImageFile] = useState("");
-    const [likeStatus, setLikeStatus] = useState({}); // track likes per post
-    const [commentText, setCommentText] = useState({});
+  const [currentUser, setCurrentUser] = useState(undefined); // undefined = loading, null = not logged in
+  const [emailRequests, setEmailRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
-    const [currentUser, setCurrentUser] = useState(null);
+  // 1) Fetch current user once
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/auth/me", { withCredentials: true });
+        if (!mounted) return;
+        setCurrentUser(res.data);
+      } catch (err) {
+        console.warn("No current user or auth/me failed:", err?.response?.status || err.message);
+        if (!mounted) return;
+        setCurrentUser(null);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
-    useEffect(() => {
-        axios.get("http://localhost:5000/api/auth/me", { withCredentials: true })
-            .then(res => setCurrentUser(res.data))
-            .catch(() => setCurrentUser(null));
-    }, []);
+  // 2) When currentUser becomes available and is admin, fetch email-change requests
+  useEffect(() => {
+    if (!currentUser) return; // null or undefined -> don't fetch
+    if (currentUser.role !== "admin") return;
 
+    let mounted = true;
+    const fetchRequests = async () => {
+      setRequestsLoading(true);
+      try {
+        const res = await axios.get("http://localhost:5000/api/email-change-requests", { withCredentials: true });
 
+        if (!mounted) return;
 
-    // 📌 Fetch posts   
-    useEffect(() => {
-        const fetchPosts = async () => {
-            try {
-                const res = await axios.get("http://localhost:5000/api/posts", { withCredentials: true });
-                setPosts(res.data);
+        const normalized = (res.data || []).map((r) => ({
+          _id: r._id,
+          user: r.user,
+          currentEmail: r.currentEmail ?? r.oldEmail ?? r.current_email ?? "",
+          requestedEmail: r.requestedEmail ?? r.newEmail ?? r.requested_email ?? "",
+          reason: r.reason ?? "",
+          status: r.status ?? "pending",
+        }));
 
-                const me = await axios.get("http://localhost:5000/api/auth/me", { withCredentials: true });
-                console.log(res.data);
-                const status = {};
-                res.data.forEach(post => {
-                    status[post._id] = post.likes.includes(me.data._id);
-                });
-                setLikeStatus(status);
-
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        fetchPosts();
-    }, []);
-
-
-
-
-    // 📌 Create post
-    const handleAddPost = async () => {
-        if (!title || !content || !imageFile) {
-            setShowPopup(false);
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append("title", title);
-        formData.append("content", content);
-        formData.append("image", imageFile);
-
-        try {
-            const res = await axios.post(
-                "http://localhost:5000/api/posts",
-                formData,
-                {
-                    withCredentials: true,
-                    headers: { "Content-Type": "multipart/form-data" },
-                }
-            );
-
-            setPosts([res.data, ...posts]);
-            setTitle("");
-            setContent("");
-            setImageFile(null);
-            setShowPopup(false);
-        } catch (err) {
-            console.error(err);
-        }
+        setEmailRequests(normalized);
+      } catch (err) {
+        console.error("Failed to fetch email change requests:", err?.response?.data ?? err.message);
+      } finally {
+        if (mounted) setRequestsLoading(false);
+      }
     };
 
+    fetchRequests();
+    return () => { mounted = false; };
+  }, [currentUser]);
 
-    return (
-        <div className="max-w-2xl mx-auto p-4">
-            {/* Posts List */}
-            <h1 className="text-xl font-bold mb-4">Home</h1>
-            <div className="space-y-4">
-                {posts.map((post) => (
-                    <div
-                        key={post._id}
-                        className="p-4 border rounded-lg shadow-sm bg-white"
-                    >
-                        <div className="flex items-center gap-2 mb-2">
-                            <img
-                                src={post.author?.profilePic || "https://www.w3schools.com/w3images/avatar3.png"}
-                                alt="avatar"
-                                className="w-8 h-8 rounded-full"
-                            />
-                            <span className="font-semibold">{post.author?.username}</span>
-                            <span className="text-gray-500 text-xs ml-auto">
-                                {new Date(post.createdAt).toLocaleString()}
-                            </span>
-                        </div>
-                        <h2 className="font-bold text-lg">{post.title}</h2>
-                        <p className="mb-2">{post.content}</p>
-                        {post.image_url && (
-                            <img
-                                src={post.image_url}
-                                alt="post"
-                                className="rounded-md mt-2"
-                            />
-                        )}
+  // Approve / Deny handlers — call backend and remove item from UI on success
+  const handleAction = async (id, action) => {
+    try {
+      await axios.put(
+        `http://localhost:5000/api/email-change-requests/${id}`,
+        { action },
+        { withCredentials: true }
+      );
 
-                        <LikeButton
-                            post={post}
-                            setPosts={setPosts}
-                            likeStatus={likeStatus}
-                            setLikeStatus={setLikeStatus}
-                        />
+      // remove from state
+      setEmailRequests((prev) => prev.filter((r) => r._id !== id));
+    } catch (err) {
+      console.error(`${action} failed:`, err?.response?.data ?? err.message);
+      alert(`Failed to ${action} request: ${err?.response?.data?.message || err?.message}`);
+    }
+  };
 
-                        <CommentsSection postId={post._id} />
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 px-6 py-6">
+      {/* Main feed (center) spans 8 columns on large screens */}
+      <div className="lg:col-span-8">
+        <MainFeed />
+      </div>
 
+      {/* Right column (sidebar). On lg it will take 4 columns. Hidden on small screens */}
+      <div className="hidden lg:block lg:col-span-4">
+        {/* Show nothing while user data is loading */}
+        {currentUser === undefined ? (
+          <div className="p-4">Loading...</div>
+        ) : currentUser?.role !== "admin" ? (
+          // non-admins see nothing (keeps layout symmetric)
+          <div className="p-4" />
+        ) : (
+          <Card className="p-4 shadow-lg rounded-2xl border border-gray-200 bg-white sticky top-6">
+            <CardContent className="p-0">
+              <h2 className="text-lg font-semibold mb-3">Email Change Requests</h2>
+
+              {requestsLoading ? (
+                <p className="text-sm text-gray-500">Loading requests...</p>
+              ) : emailRequests.length === 0 ? (
+                <p className="text-sm text-gray-500">No pending requests.</p>
+              ) : (
+                <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+                  {emailRequests.map((r) => (
+                    <div key={r._id} className="border rounded-md p-3 bg-gray-50">
+                      <p className="font-medium text-sm">
+                        {r.user?.firstname || r.user?.username || "Unknown User"}
+                      </p>
+                      <p className="text-xs text-gray-600">Current: {r.currentEmail}</p>
+                      <p className="text-xs text-gray-600">Requested: {r.requestedEmail}</p>
+                      {r.reason && <p className="text-xs text-gray-500 mt-1">Reason: {r.reason}</p>}
+
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleAction(r._id, "approve")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleAction(r._id, "deny")}
+                        >
+                          Deny
+                        </Button>
+                      </div>
                     </div>
-                ))}
-            </div>
-
-            {/* Floating + Button */}
-            <button
-
-                onClick={() => setShowPopup(true)}
-                className="fixed bottom-6 right-6 bg-blue-500 text-white text-2xl px-4 py-2 rounded-full shadow-lg hover:bg-blue-600"
-            >
-                +
-            </button>
-
-            {/* Popup for Creating Post */}
-            {showPopup && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white p-4 rounded-lg shadow-lg w-96">
-                        <h2 className="text-lg font-bold mb-2">Create Post</h2>
-                        <input
-                            type="text"
-                            placeholder="Title"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="border w-full p-2 mb-2"
-                        />
-                        <textarea
-                            placeholder="Content"
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
-                            className="border w-full p-2 mb-2"
-                        />
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => setImageFile(e.target.files[0])}
-                        />
-                        <div className="flex justify-end gap-2">
-                            <button
-                                onClick={() => setShowPopup(false)}
-                                className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleAddPost}
-                                className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                            >
-                                Post
-                            </button>
-                        </div>
-                    </div>
+                  ))}
                 </div>
-            )}
-        </div>
-    );
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default Home;

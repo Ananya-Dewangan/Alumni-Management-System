@@ -20,6 +20,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import sendPostRoutes from "./routes/sendPostRoutes.js";
 import Message from "./models/Message.js";
 import Notification from "./models/Notification.js";
+import emailChangeRoutes from './routes/emailChangeRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -60,6 +61,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/send-post", sendPostRoutes);
 app.use("/api/admin", adminRoutes);
+app.use('/api/email-change-requests', emailChangeRoutes);
 
 // ✅ Socket.IO Events
 io.on("connection", (socket) => {

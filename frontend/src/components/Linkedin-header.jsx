@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import campussetuLogo from "../assets/campussetu-logo.png"; // ✅ Correct import path
 
 const socket = io("http://localhost:5000", { withCredentials: true });
 
@@ -85,13 +86,18 @@ export function LinkedInHeader() {
     <header className="bg-white border-b shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
-          {/* 🔹 Logo */}
+
+          {/* 🔹 CampusSetu Logo */}
           <Link to="/home">
             <div className="flex items-center gap-2">
-              <div className="bg-blue-600 text-white w-8 h-8 rounded flex items-center justify-center font-bold text-xl">
-                LU
-              </div>
-              <span className="text-xl font-semibold">LynkUp</span>
+              <img
+                src={campussetuLogo}
+                alt="CampusSetu Logo"
+                className="w-9 h-9 object-contain rounded-md"
+              />
+              <span className="text-xl font-semibold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">
+                CampusSetu
+              </span>
             </div>
           </Link>
 
