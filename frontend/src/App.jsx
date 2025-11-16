@@ -15,6 +15,9 @@ import ErrorPage from "./pages/error/ErrorPage";
 import SendPostPage from "@/pages/post/SendPostPage";
 import SinglePostPage from "./pages/post/SinglePostPage";
 import EmailChangeRequestPage from "./pages/profile/EmailChangeRequestPage";
+import ReminderPage from "./pages/ReminderPage";
+import Contribute from "./pages/donations/Contribute";
+import AdminRequests from "./pages/donations/AdminRequests";
 
 
 // ✅ Import your new Admin Data Export page
@@ -44,6 +47,9 @@ export default function App() {
         {/* ✅ Admin data export page */}
         <Route path="/admin-data-export" element={<AdminDataExport />} />
 
+        <Route path="/donations" element={<Contribute />} />         
+        <Route path="/admin/donations" element={<AdminRequests />} /> 
+
         {/* Default routes */}
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/error" element={<ErrorPage />} />
@@ -51,6 +57,7 @@ export default function App() {
         <Route path="/post/:id" element={<SinglePostPage />} />
         <Route path="/event/:id" element={<EventPage />} />
         <Route path="/profile/:id" element={<ProfilePage />} />
+         <Route path="/reminders/:date" element={<ReminderPage />} />
       </Routes>
     </BrowserRouter>
   );

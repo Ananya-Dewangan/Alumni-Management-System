@@ -3,6 +3,11 @@ import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Mail, Quote } from "lucide-react";
+import { CalendarDays } from "lucide-react"; // icon for calendar section
+import Calendar from "react-calendar"; // actual calendar component
+// import "react-calendar/dist/Calendar.css"; // calendar styles
+
+
 
 // 🌟 50 Motivational / Daily Thoughts
 const THOUGHTS = [
@@ -58,6 +63,9 @@ const THOUGHTS = [
   "Your future is created by what you do today, not tomorrow."
 ];
 
+
+
+
 export default function RightSidebar() {
   const [currentUser, setCurrentUser] = useState(null);
   const [emailRequests, setEmailRequests] = useState([]);
@@ -65,9 +73,24 @@ export default function RightSidebar() {
   const [loading, setLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+  const [reminders, setReminders] = useState([]);
+const [selectedDate, setSelectedDate] = useState(null);
+const [reminderText, setReminderText] = useState("");
+const [showReminderInput, setShowReminderInput] = useState(false);
+
 
   const isAdmin = currentUser?.role === "admin";
-  const isUser = ["alumni", "student"].includes(currentUser?.role);
+  const isUser = ["alumni", "student"].includes(currentUser?.role?.toLowerCase());
+
+
+  // Fetch reminders for all users
+useEffect(() => {
+  axios
+    .get("http://localhost:5000/api/reminders")
+    .then((res) => setReminders(res.data))
+    .catch(() => setReminders([]));
+}, []);
+
 
   useEffect(() => {
     axios
@@ -121,7 +144,40 @@ export default function RightSidebar() {
   const dayIndex = Math.floor(today.getTime() / (1000 * 60 * 60 * 24)) % 50;
   const todayThought = THOUGHTS[dayIndex];
 
+  // 📅 Handle day click
+const handleDateClick = (date) => {
+  setSelectedDate(date);
+  setShowReminderInput(true);
+};
+
+// Save reminder (Admin only)
+const handleSaveReminder = async () => {
+  if (!reminderText.trim()) return alert("Please enter a reminder!");
+
+  try {
+    const res = await axios.post("http://localhost:5000/api/reminders", {
+      date: selectedDate,
+      message: reminderText,
+      userId: currentUser?._id, // attach logged-in user
+    });
+
+    setReminders((prev) => [...prev, res.data]);
+    setShowReminderInput(false);
+    setReminderText("");
+    alert("Reminder set successfully!");
+  } catch (err) {
+    console.error("Failed to save reminder:", err);
+    alert("Error saving reminder.");
+  }
+};
+
+
+
+
+
   return (
+
+    
     <div className="sticky top-6 space-y-6">
 
       {/* 🌟 Admin Section */}
@@ -260,9 +316,159 @@ export default function RightSidebar() {
         </Card>
       )}
 
+    {/* 🗓️ Calendar Section */}
+{isUser && (
+  <Card className="right-sidebar-calendar fixed top-[290px] right-10 w-[300px] md:w-[360px] h-[350px] rounded-3xl shadow-2xl border border-purple-300
+                   bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50
+                   overflow-hidden transition-all hover:shadow-purple-400/50 z-50 p-4">
+    <div className="flex items-center gap-2 mb-3">
+      <CalendarDays className="w-5 h-5 text-purple-700" />
+      <h3 className="font-semibold text-gray-800 text-sm md:text-base">Reminders</h3>
+    </div>
+
+    <Calendar
+      style={{ width: "100%", height: "calc(100% - 50px)", backgroundColor: "transparent" }}
+      onClickDay={(date) => {
+        const existingReminder = reminders.find(
+          (r) => new Date(r.date).toDateString() === date.toDateString()
+        );
+        setSelectedDate(date);
+        setReminderText(existingReminder ? existingReminder.message : "");
+        setShowReminderInput(true);
+      }}
+      value={selectedDate}
+      className="w-full text-sm md:text-base"
+      tileClassName={({ date, view }) => {
+        if (view !== "month") return "";
+
+        const hasReminder = reminders.some(
+          (r) => new Date(r.date).toDateString() === date.toDateString()
+        );
+        const isSelected =
+          selectedDate && date.toDateString() === selectedDate.toDateString();
+        const today = new Date().toDateString();
+        const isToday = date.toDateString() === today;
+
+        let classes =
+          "flex items-center justify-center rounded-lg text-center transition-all duration-300 ease-in-out cursor-pointer";
+
+        classes += " w-[36px] h-[36px] md:w-[40px] md:h-[40px] m-[1px]";
+
+        if (hasReminder) {
+          classes +=
+            " bg-purple-600 text-white font-semibold shadow-md hover:scale-105 hover:shadow-lg";
+        } else {
+          classes +=
+            " bg-white text-gray-800 hover:bg-purple-100 hover:text-purple-700 hover:scale-105";
+        }
+
+        if (isSelected)
+          classes +=
+            " ring-2 ring-purple-700 bg-purple-700 text-white font-bold shadow-lg";
+
+        if (isToday && !isSelected)
+          classes += " border-2 border-purple-400 font-semibold shadow-sm";
+
+        return classes;
+      }}
+      formatDay={(locale, date) => date.getDate()}
+    />
+
+    {/* Custom CSS for navigation and weekdays */}
+    <style jsx>{`
+  /* Month navigation */
+  .react-calendar__navigation {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0.5rem;
+    background-color: transparent;
+    margin-bottom: 0.25rem;
+  }
+  .react-calendar__navigation button {
+    min-width: 30px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #5b21b6; /* purple-700 */
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    transition: all 0.2s ease-in-out;
+  }
+  .react-calendar__navigation button:hover {
+    background-color: #d8b4fe; /* purple-200 */
+    transform: scale(1.1);
+  }
+
+  /* Weekday labels */
+  .react-calendar__month-view__weekdays {
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6b7280; /* gray-500 */
+    margin-bottom: 0.2rem;
+  }
+
+  /* Days grid spacing */
+  .react-calendar__month-view__days {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  /* Neighboring month dates (previous/next month) */
+  .react-calendar__month-view__days__day--neighboringMonth {
+    color: #9ca3af; /* gray-400 */
+    opacity: 0.5; /* blur/faded effect */
+  }
+`}</style>
+
+  </Card>
+)}
+
+
+
+
+{/* Reminder Modal */}
+{showReminderInput && (
+  <div className="fixed inset-0 flex items-center justify-center z-50">
+    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+
+    <div className="relative bg-white p-6 rounded-xl shadow-lg w-[90%] max-w-md z-10">
+      <p className="text-sm text-gray-700 mb-2">
+        {reminders.some(r => new Date(r.date).toDateString() === selectedDate?.toDateString())
+          ? `Reminder for ${selectedDate?.toDateString()}`
+          : `Set reminder for ${selectedDate?.toDateString()}`}
+      </p>
+      <textarea
+        className="w-full p-2 border rounded-md text-sm"
+        rows="3"
+        placeholder="Enter reminder message..."
+        value={reminderText}
+        onChange={(e) => setReminderText(e.target.value)}
+      />
+      <div className="flex justify-end mt-4 gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => setShowReminderInput(false)}
+        >
+          Close
+        </Button>
+        <Button size="sm" onClick={handleSaveReminder}>
+          Save
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+
+
       {/* 💭 Daily Thought Section */}
       {isUser && (
-        <Card className="fixed top-20 right-10 w-[320px] md:w-[360px] rounded-3xl shadow-2xl border border-purple-200 
+        <Card className="fixed top-16 right-10 w-[320px] md:w-[360px]  md:h-[180px] rounded-3xl shadow-2xl border border-purple-200 
                bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-100 
                overflow-hidden transition-all hover:shadow-purple-300/50 z-50">
           {/* ✨ 3 Small Floating Sparkles */}
@@ -317,6 +523,13 @@ export default function RightSidebar() {
               “{todayThought}”
             </p>
 
+            {reminders.find(r => new Date(r.date).toDateString() === today.toDateString()) && (
+  <div className="mt-4 p-3 bg-yellow-100 rounded-lg border border-yellow-300 text-sm text-gray-800 text-center">
+    🔔 <strong>Reminder:</strong> {reminders.find(r => new Date(r.date).toDateString() === today.toDateString()).message}
+  </div>
+)}
+
+
             <div className="mt-4 h-[2px] bg-gradient-to-r from-purple-400 via-blue-400 to-pink-400 rounded-full animate-pulse" />
             <p className="text-xs text-gray-500 text-right mt-3 italic">
               {/* Thought #{dayIndex + 1}/50 ✨ */}
@@ -324,6 +537,8 @@ export default function RightSidebar() {
           </CardContent>
         </Card>
       )}
+
+      
     </div>
   );
 }

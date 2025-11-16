@@ -21,6 +21,9 @@ import sendPostRoutes from "./routes/sendPostRoutes.js";
 import Message from "./models/Message.js";
 import Notification from "./models/Notification.js";
 import emailChangeRoutes from './routes/emailChangeRoutes.js';
+import remindersRoutes from './routes/reminders.js'; 
+import donationRoutes from "./routes/donationRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -62,6 +65,10 @@ app.use("/api/events", eventRoutes);
 app.use("/api/send-post", sendPostRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api/email-change-requests', emailChangeRoutes);
+app.use("/api/reminders", remindersRoutes);  
+app.use("/api/donation", donationRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/uploads", express.static("uploads")); 
 
 // ✅ Socket.IO Events
 io.on("connection", (socket) => {
