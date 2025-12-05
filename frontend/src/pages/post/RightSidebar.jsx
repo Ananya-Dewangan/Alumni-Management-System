@@ -77,6 +77,8 @@ export default function RightSidebar() {
 const [selectedDate, setSelectedDate] = useState(null);
 const [reminderText, setReminderText] = useState("");
 const [showReminderInput, setShowReminderInput] = useState(false);
+const [viewOnlyReminder, setViewOnlyReminder] = useState(null);
+
 
 
   const isAdmin = currentUser?.role === "admin";
@@ -155,22 +157,40 @@ const handleSaveReminder = async () => {
   if (!reminderText.trim()) return alert("Please enter a reminder!");
 
   try {
-    const res = await axios.post("http://localhost:5000/api/reminders", {
-      date: selectedDate,
-      message: reminderText,
-      userId: currentUser?._id, // attach logged-in user
-    });
+    // If editing an existing reminder
+    const existing = reminders.find(
+      (r) => new Date(r.date).toDateString() === selectedDate?.toDateString()
+    );
 
-    setReminders((prev) => [...prev, res.data]);
+    if (existing) {
+      const res = await axios.put(
+        `http://localhost:5000/api/reminders/${existing._id}`,
+        { message: reminderText }
+      );
+
+      setReminders((prev) =>
+        prev.map((r) => (r._id === existing._id ? res.data : r))
+      );
+
+      alert("Reminder updated!");
+    } else {
+      // NEW reminder
+      const res = await axios.post("http://localhost:5000/api/reminders", {
+        date: selectedDate,
+        message: reminderText,
+        userId: currentUser?._id,
+      });
+
+      setReminders((prev) => [...prev, res.data]);
+      alert("Reminder added!");
+    }
+
     setShowReminderInput(false);
     setReminderText("");
-    alert("Reminder set successfully!");
   } catch (err) {
-    console.error("Failed to save reminder:", err);
     alert("Error saving reminder.");
   }
 };
-
 
 
 
@@ -323,54 +343,73 @@ const handleSaveReminder = async () => {
                    overflow-hidden transition-all hover:shadow-purple-400/50 z-50 p-4">
     <div className="flex items-center gap-2 mb-3">
       <CalendarDays className="w-5 h-5 text-purple-700" />
-      <h3 className="font-semibold text-gray-800 text-sm md:text-base">Reminders</h3>
+      <h2 className="text-x2 font-bold bg-gradient-to-r from-purple-700 to-blue-600 bg-clip-text text-transparent tracking-wide"> Set Reminders</h2>
     </div>
 
     <Calendar
       style={{ width: "100%", height: "calc(100% - 50px)", backgroundColor: "transparent" }}
       onClickDay={(date) => {
-        const existingReminder = reminders.find(
-          (r) => new Date(r.date).toDateString() === date.toDateString()
-        );
-        setSelectedDate(date);
-        setReminderText(existingReminder ? existingReminder.message : "");
-        setShowReminderInput(true);
-      }}
+  const existingReminder = reminders.find(
+    (r) => new Date(r.date).toDateString() === date.toDateString()
+  );
+  
+  setSelectedDate(date);
+
+  if (existingReminder) {
+    // show quick-view card
+   setViewOnlyReminder(existingReminder);
+
+    setShowReminderInput(false);
+  } else {
+    // create new reminder
+    setReminderText("");
+    setShowReminderInput(true);
+  }
+}}
+
       value={selectedDate}
       className="w-full text-sm md:text-base"
       tileClassName={({ date, view }) => {
-        if (view !== "month") return "";
+  if (view !== "month") return "";
 
-        const hasReminder = reminders.some(
-          (r) => new Date(r.date).toDateString() === date.toDateString()
-        );
-        const isSelected =
-          selectedDate && date.toDateString() === selectedDate.toDateString();
-        const today = new Date().toDateString();
-        const isToday = date.toDateString() === today;
+  const hasReminder = reminders.some(
+    (r) => new Date(r.date).toDateString() === date.toDateString()
+  );
+  const isSelected =
+    selectedDate && date.toDateString() === selectedDate.toDateString();
+  const today = new Date().toDateString();
+  const isToday = date.toDateString() === today;
 
-        let classes =
-          "flex items-center justify-center rounded-lg text-center transition-all duration-300 ease-in-out cursor-pointer";
+  // base
+  let classes =
+    "flex items-center justify-center rounded-lg text-center transition-all duration-300 ease-in-out cursor-pointer w-[36px] h-[36px] md:w-[40px] md:h-[40px] m-[1px]";
 
-        classes += " w-[36px] h-[36px] md:w-[40px] md:h-[40px] m-[1px]";
+  // non-reminder default
+  if (!hasReminder) {
+    classes += " bg-white text-gray-800 hover:bg-purple-100 hover:text-purple-700 hover:scale-105";
+  }
 
-        if (hasReminder) {
-          classes +=
-            " bg-purple-600 text-white font-semibold shadow-md hover:scale-105 hover:shadow-lg";
-        } else {
-          classes +=
-            " bg-white text-gray-800 hover:bg-purple-100 hover:text-purple-700 hover:scale-105";
-        }
+  // reminder day
+  if (hasReminder) {
+    classes += " bg-purple-600 text-white font-semibold shadow-md hover:scale-105 hover:shadow-lg";
+  }
 
-        if (isSelected)
-          classes +=
-            " ring-2 ring-purple-700 bg-purple-700 text-white font-bold shadow-lg";
+  // today's border (only when not selected)
+  if (isToday && !isSelected) {
+    classes += " border-2 border-purple-700 font-bold shadow-sm";
+  }
 
-        if (isToday && !isSelected)
-          classes += " border-2 border-purple-400 font-semibold shadow-sm";
+  // ===== SELECTED (MUST BE LAST) =====
+  // Force selected to stay purple even on hover by using Tailwind's "!" modifier
+  // (requires Tailwind JIT / support for '!' utilities)
+  if (isSelected) {
+    classes +=
+      " !bg-blue-400 !text-white !font-bold !shadow-lg !ring-2 !ring-blue-400 hover:!bg-purple-700 hover:!text-white hover:!scale-100";
+  }
 
-        return classes;
-      }}
+  return classes;
+}}
+
       formatDay={(locale, date) => date.getDate()}
     />
 
@@ -426,36 +465,128 @@ const handleSaveReminder = async () => {
   </Card>
 )}
 
+{/* 🔔 VIEW-ONLY REMINDER CARD */}
+{viewOnlyReminder && (
+  <div className="fixed inset-0 flex items-center justify-center z-50">
+    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+
+    <div className="relative bg-white p-6 rounded-xl shadow-xl w-[90%] max-w-md z-10">
+      <h3 className="text-lg font-semibold text-purple-700 mb-3 text-center">
+        Reminder
+      </h3>
+
+      <p className="text-black-700 text-base text-center mb-4">
+        {viewOnlyReminder.message}
+      </p>
+
+      <div className="flex justify-center gap-3">
+        {/* EDIT */}
+        <Button
+          size="sm"
+          className="bg-blue-600 text-white px-5 py-1.5 rounded-full hover:bg-blue-700"
+          onClick={() => {
+            setReminderText(viewOnlyReminder.message);
+            setShowReminderInput(true);
+            setViewOnlyReminder(null);
+          }}
+        >
+          Edit
+        </Button>
+
+        <Button
+  size="sm"
+  className="bg-red-600 text-white px-5 py-1.5 rounded-full hover:bg-red-700"
+  onClick={async () => {
+    if (!confirm("Delete this reminder?")) return;
+
+    try {
+      await axios.delete(
+        `http://localhost:5000/api/reminders/${viewOnlyReminder._id}`
+      );
+
+      // Remove from all states that rely on reminders
+      setReminders((prev) =>
+        prev.filter((r) => r._id !== viewOnlyReminder._id)
+      );
+
+      if (
+        selectedDate &&
+        viewOnlyReminder.date &&
+        new Date(viewOnlyReminder.date).toDateString() ===
+          selectedDate.toDateString()
+      ) {
+        setSelectedDate(null); // Clear selection if deleted reminder was selected
+      }
+
+      setViewOnlyReminder(null);
+      setReminderText("");
+      setShowReminderInput(false);
+
+      alert("Reminder deleted!");
+    } catch (err) {
+      alert("Error deleting reminder.");
+    }
+  }}
+>
+  Delete
+</Button>
+
+
+        {/* CLOSE */}
+        <Button
+          size="sm"
+          className="px-5 py-1.5 rounded-full border border-purple-500 text-purple-700 bg-white hover:bg-purple-50"
+          onClick={() => setViewOnlyReminder(null)}
+        >
+          Close
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
 
 
 
 {/* Reminder Modal */}
 {showReminderInput && (
   <div className="fixed inset-0 flex items-center justify-center z-50">
+    {/* Background overlay */}
     <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
 
-    <div className="relative bg-white p-6 rounded-xl shadow-lg w-[90%] max-w-md z-10">
-      <p className="text-sm text-gray-700 mb-2">
-        {reminders.some(r => new Date(r.date).toDateString() === selectedDate?.toDateString())
+    {/* Modal content */}
+    <div className="relative bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6 rounded-3xl shadow-2xl w-[90%] max-w-md z-10 border border-purple-200">
+      
+      <p className="text-sm text-gray-700 mb-3 font-medium">
+        {reminders.some(
+          (r) => new Date(r.date).toDateString() === selectedDate?.toDateString()
+        )
           ? `Reminder for ${selectedDate?.toDateString()}`
           : `Set reminder for ${selectedDate?.toDateString()}`}
       </p>
+
       <textarea
-        className="w-full p-2 border rounded-md text-sm"
-        rows="3"
+        className="w-full p-3 border border-purple-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+        rows="4"
         placeholder="Enter reminder message..."
         value={reminderText}
         onChange={(e) => setReminderText(e.target.value)}
       />
-      <div className="flex justify-end mt-4 gap-2">
+
+      <div className="flex justify-end mt-5 gap-3">
         <Button
           size="sm"
           variant="secondary"
+          className="bg-white text-purple-700 border border-purple-400 hover:bg-purple-50 hover:text-purple-800 rounded-full px-4 py-1.5 transition-all"
           onClick={() => setShowReminderInput(false)}
         >
           Close
         </Button>
-        <Button size="sm" onClick={handleSaveReminder}>
+
+        <Button
+          size="sm"
+          className="bg-purple-600 hover:bg-purple-700 text-white rounded-full px-4 py-1.5 shadow-md transition-all"
+          onClick={handleSaveReminder}
+        >
           Save
         </Button>
       </div>

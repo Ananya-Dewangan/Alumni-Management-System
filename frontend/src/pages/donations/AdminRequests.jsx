@@ -23,7 +23,6 @@ export default function AdminRequests() {
     fetchRequests();
   }, []);
 
-  // Fetch donation requests
   async function fetchRequests() {
     try {
       const res = await axios.get("http://localhost:5000/api/donation/requests", {
@@ -40,21 +39,18 @@ export default function AdminRequests() {
     }
   }
 
-  // Create new donation request
   async function createRequest(e) {
     e.preventDefault();
     try {
-      const formData = new FormData();
-      formData.append("title", form.title);
-      formData.append("description", form.description);
-      formData.append("targetAmount", Number(form.targetAmount));
-      formData.append("deadline", form.deadline);
+      const fd = new FormData();
+      fd.append("title", form.title);
+      fd.append("description", form.description);
+      fd.append("targetAmount", Number(form.targetAmount));
+      fd.append("deadline", form.deadline);
 
-      form.images.forEach((file) => {
-        formData.append("images", file);
-      });
+      form.images.forEach((file) => fd.append("images", file));
 
-      await axios.post("http://localhost:5000/api/donation/request", formData, {
+      await axios.post("http://localhost:5000/api/donation/request", fd, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "multipart/form-data",
@@ -77,7 +73,6 @@ export default function AdminRequests() {
     }
   }
 
-  // Close donation request
   async function closeRequest(id) {
     try {
       await axios.patch(
@@ -94,7 +89,6 @@ export default function AdminRequests() {
     }
   }
 
-  // Delete donation request
   async function deleteRequest(id) {
     if (!window.confirm("Are you sure you want to delete this campaign?")) return;
 
@@ -110,188 +104,230 @@ export default function AdminRequests() {
     }
   }
 
-  // Handle image upload
   const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    setForm((prev) => ({
-      ...prev,
-      images: [...prev.images, ...selectedFiles],
-    }));
+    const files = Array.from(e.target.files);
+    setForm((prev) => ({ ...prev, images: [...prev.images, ...files] }));
   };
 
-  const removeImage = (index) => {
+  const removeImage = (i) => {
     setForm((prev) => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index),
+      images: prev.images.filter((_, idx) => idx !== i),
     }));
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <LinkedInHeader />
+  <div className="min-h-screen bg-gradient-to-br from-[#F8F5FF] via-[#FDF2FA] to-[#F3F8FF]">
+    <LinkedInHeader />
 
-      <main className="max-w-5xl mx-auto p-6">
-        <h2 className="text-2xl font-semibold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text mb-6">
-          Donation Requests (Admin)
-        </h2>
+    <main className="max-w-7xl mx-auto p-6">
 
-        {/* Create Campaign */}
-        <Card className="mb-8 border shadow-sm">
-          <CardContent className="p-6 space-y-5">
-            <form onSubmit={createRequest} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  required
-                  placeholder="Title"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                />
-                <Input
-                  type="number"
-                  required
-                  placeholder="Target Amount (₹)"
-                  value={form.targetAmount}
-                  onChange={(e) =>
-                    setForm({ ...form, targetAmount: e.target.value })
-                  }
-                />
-              </div>
+      {/* HEADER */}
+      <h2 className="text-4xl font-extrabold text-center mb-16 
+        bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 
+        bg-clip-text text-transparent drop-shadow-lg tracking-wide">
+        🎗️  Donation Requests 
+      </h2>
 
-              <Textarea
-                placeholder="Description"
-                value={form.description}
+      {/* CREATE CAMPAIGN CARD */}
+      <Card className="mb-20 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.08)]
+        bg-white/80 backdrop-blur-xl border border-purple-200/30 
+        hover:shadow-purple-300/40 transition-all">
+        <CardContent className="p-10 space-y-6">
+          <h3 className="text-2xl font-semibold text-indigo-700 mb-4">
+            Create New Campaign
+          </h3>
+
+          <form onSubmit={createRequest} className="space-y-6">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input
+                required
+                placeholder="Campaign Title"
+                className="rounded-2xl border-purple-300 focus:ring-purple-400"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+              />
+              <Input
+                required
+                type="number"
+                placeholder="Target Amount (₹)"
+                className="rounded-2xl border-purple-300 focus:ring-purple-400"
+                value={form.targetAmount}
                 onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
+                  setForm({ ...form, targetAmount: e.target.value })
                 }
               />
+            </div>
+
+            <Textarea
+              placeholder="Write a meaningful description..."
+              className="rounded-2xl border-purple-300 focus:ring-purple-400"
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
+
+            <Input
+              type="date"
+              className="rounded-2xl border-purple-300 focus:ring-purple-400"
+              value={form.deadline}
+              onChange={(e) =>
+                setForm({ ...form, deadline: e.target.value })
+              }
+            />
+
+            {/* IMAGE UPLOAD */}
+            <div>
+              <label className="font-medium text-gray-700 flex items-center gap-2 mb-2">
+                <ImageIcon className="w-5 h-5 text-indigo-600" />
+                Upload Campaign Images
+              </label>
 
               <Input
-                type="date"
-                value={form.deadline}
-                onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileChange}
+                className="rounded-2xl border-purple-300"
               />
 
-              {/* Upload Images */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-blue-600" /> Upload Images
-                </label>
-                <Input type="file" multiple accept="image/*" onChange={handleFileChange} />
+              {form.images.length > 0 && (
+                <div className="mt-6 flex flex-wrap gap-4">
+                  {form.images.map((file, i) => (
+                    <div
+                      key={i}
+                      className="relative w-32 h-32 rounded-2xl overflow-hidden 
+                      shadow-md border border-purple-200/40 bg-white/90"
+                    >
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt=""
+                        className="object-cover w-full h-full"
+                      />
 
-                {form.images.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {form.images.map((file, i) => (
-                      <div
-                        key={i}
-                        className="relative w-24 h-24 rounded-lg overflow-hidden border"
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute top-1 right-1 bg-white/90 p-1 rounded-full shadow"
                       >
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt="preview"
-                          className="object-cover w-full h-full"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(i)}
-                          className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow hover:bg-gray-100"
-                        >
-                          <X className="w-4 h-4 text-red-500" />
-                        </button>
-                      </div>
+                        <X className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-half py-4 rounded-2xl text-lg font-semibold 
+              bg-gradient-to-r from-indigo-500 to-purple-500 
+              hover:opacity-90 shadow-xl"
+            >
+              Create Campaign
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* EXISTING CAMPAIGNS HEADER */}
+      <h3 className="text-3xl font-extrabold  mb-16
+        bg-gradient-to-r from-indigo-600 to-purple-900 
+        bg-clip-text text-transparent drop-shadow-lg tracking-wide">
+        👉🏻 Existing Campaigns
+      </h3>
+
+      {/* LOADER */}
+      {loading ? (
+        <div className="text-center py-10 text-gray-600 flex justify-center">
+          <Loader2 className="animate-spin w-6 h-6 mr-2" /> Loading...
+        </div>
+      ) : requests.length > 0 ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-12">
+          {requests.map((r) => (
+            <Card
+              key={r._id}
+              className="rounded-3xl bg-white/90 backdrop-blur-md 
+              shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-purple-200/30 
+              hover:shadow-purple-300/50 hover:-translate-y-1 scale-[1] 
+              hover:scale-[1.02] transition-all duration-300"
+            >
+              <CardContent className="p-6 space-y-4">
+
+                <div>
+                  <h4 className="text-xl font-bold text-indigo-700">
+                    {r.title}
+                  </h4>
+                  <p className="text-gray-700 mt-1">{r.description}</p>
+                </div>
+
+                {/* AMOUNT */}
+                <div className="mt-2 text-lg font-semibold">
+                  <span className="text-green-600">
+                    ₹{r.collectedAmount || 0}
+                  </span>
+                  <span className="text-gray-700"> / ₹{r.targetAmount}</span>
+                </div>
+
+                {/* STATUS */}
+                <Badge
+                  className={`rounded-xl px-3 py-1 tracking-wide ${
+                    r.status === "active"
+                      ? "bg-green-200 text-green-700"
+                      : "bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  {r.status === "active" ? "Active" : "Closed"}
+                </Badge>
+
+                {/* IMAGES */}
+                {r.images?.length > 0 && (
+                  <div className="flex flex-wrap gap-3 pt-3">
+                    {r.images.map((img, idx) => (
+                      <img
+                        key={idx}
+                        src={`http://localhost:5000${img}`}
+                        className="w-28 h-28 rounded-xl object-cover border shadow-sm"
+                        alt=""
+                      />
                     ))}
                   </div>
                 )}
-              </div>
 
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                Create Campaign
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Existing Campaigns */}
-        <h3 className="text-xl font-semibold text-gray-800 mb-4">
-          Existing Campaigns
-        </h3>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-gray-500">
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Loading requests...
-          </div>
-        ) : requests.length > 0 ? (
-          <div className="space-y-4">
-            {requests.map((r) => (
-              <Card
-                key={r._id}
-                className="border hover:shadow-md transition-all duration-200"
-              >
-                <CardContent className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <h4 className="font-semibold text-gray-900">{r.title}</h4>
-                    <p className="text-sm text-gray-600">{r.description}</p>
-                    <div className="mt-2 text-sm">
-                      Collected:{" "}
-                      <span className="font-medium text-green-600">
-                        ₹{r.collectedAmount || 0}
-                      </span>{" "}
-                      / ₹{r.targetAmount}
-                    </div>
-
-                    <Badge
-                      className={`mt-2 ${
-                        r.status === "active"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {r.status === "active" ? "Active" : "Closed"}
-                    </Badge>
-
-                    {r.images?.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {r.images.map((img, idx) => (
-                          <img
-                            key={idx}
-                            src={`http://localhost:5000${img}`}
-                            alt="donation"
-                            className="w-24 h-24 object-cover rounded-md border"
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    {r.status === "active" && (
-                      <Button
-                        variant="destructive"
-                        onClick={() => closeRequest(r._id)}
-                        className="bg-red-500 hover:bg-red-600 text-white"
-                      >
-                        Close
-                      </Button>
-                    )}
-
+                {/* BUTTONS */}
+                <div className="flex gap-3 pt-4">
+                  {r.status === "active" && (
                     <Button
-                      variant="outline"
-                      onClick={() => deleteRequest(r._id)}
-                      className="border border-gray-300 hover:bg-gray-100 flex items-center gap-1"
+                      onClick={() => closeRequest(r._id)}
+                      className="bg-red-500 hover:bg-red-600 text-white rounded-xl"
                     >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                      Delete
+                      Close
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 italic text-center py-10">
-            No donation requests found.
-          </p>
-        )}
-      </main>
-    </div>
-  );
+                  )}
+
+                  <Button
+                    variant="outline"
+                    onClick={() => deleteRequest(r._id)}
+                    className="rounded-xl border border-gray-300 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                    Delete
+                  </Button>
+                </div>
+
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <p className="text-center text-gray-500 italic py-10">
+          No donation requests found.
+        </p>
+      )}
+    </main>
+  </div>
+);
+
 }
