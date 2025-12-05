@@ -7,16 +7,14 @@ import { CalendarDays } from "lucide-react"; // icon for calendar section
 import Calendar from "react-calendar"; // actual calendar component
 // import "react-calendar/dist/Calendar.css"; // calendar styles
 
-
-
 // 🌟 50 Motivational / Daily Thoughts
 const THOUGHTS = [
-  "Believe you can and you’re halfway there.",
+  "Believe you can and you're halfway there.",
   "Small steps every day lead to big change.",
   "Stay positive, work hard, make it happen.",
-  "Don’t watch the clock; do what it does — keep going.",
+  "Don't watch the clock; do what it does — keep going.",
   "Success is the sum of small efforts repeated daily.",
-  "Your limitation—it’s only your imagination.",
+  "Your limitation—it's only your imagination.",
   "Push yourself, because no one else is going to do it for you.",
   "Great things never come from comfort zones.",
   "Dream it. Wish it. Do it.",
@@ -24,22 +22,22 @@ const THOUGHTS = [
   "Little by little, one travels far.",
   "If you can dream it, you can do it.",
   "Hustle in silence, let success make the noise.",
-  "You don’t have to be perfect to be amazing.",
+  "You don't have to be perfect to be amazing.",
   "Work hard in silence, let your success be your noise.",
   "Discipline is choosing between what you want now and what you want most.",
-  "Don’t stop until you’re proud.",
+  "Don't stop until you're proud.",
   "Be stronger than your excuses.",
   "Your only limit is your mind.",
   "Doubt kills more dreams than failure ever will.",
   "Consistency is more important than perfection.",
   "One day or day one — you decide.",
-  "It always seems impossible until it’s done.",
+  "It always seems impossible until it's done.",
   "Strive for progress, not perfection.",
   "You get what you work for, not what you wish for.",
   "Make today so awesome that yesterday gets jealous.",
-  "The harder you work for something, the greater you’ll feel when you achieve it.",
+  "The harder you work for something, the greater you'll feel when you achieve it.",
   "Wake up with determination. Go to bed with satisfaction.",
-  "Don’t limit your challenges. Challenge your limits.",
+  "Don't limit your challenges. Challenge your limits.",
   "Act as if what you do makes a difference. It does.",
   "A little progress each day adds up to big results.",
   "Stay humble, work hard, be kind.",
@@ -47,24 +45,21 @@ const THOUGHTS = [
   "Failure is the opportunity to begin again, smarter.",
   "Great things take time. Be patient.",
   "Work hard and be proud of what you achieve.",
-  "Opportunities don’t happen, you create them.",
-  "Success doesn’t come to you, you go to it.",
+  "Opportunities don't happen, you create them.",
+  "Success doesn't come to you, you go to it.",
   "Start where you are. Use what you have. Do what you can.",
   "Be fearless in pursuit of what sets your soul on fire.",
   "Every day is a second chance.",
-  "Don’t be busy, be productive.",
+  "Don't be busy, be productive.",
   "Keep your eyes on the stars, and your feet on the ground.",
   "The secret to getting ahead is getting started.",
   "Make yourself proud.",
-  "Don’t be afraid to start over; it’s a new chance to rebuild.",
+  "Don't be afraid to start over; it's a new chance to rebuild.",
   "Success is not for the lazy.",
-  "You’re doing better than you think.",
-  "It’s never too late to be what you might have been.",
+  "You're doing better than you think.",
+  "It's never too late to be what you might have been.",
   "Your future is created by what you do today, not tomorrow."
 ];
-
-
-
 
 export default function RightSidebar() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -74,25 +69,22 @@ export default function RightSidebar() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [reminders, setReminders] = useState([]);
-const [selectedDate, setSelectedDate] = useState(null);
-const [reminderText, setReminderText] = useState("");
-const [showReminderInput, setShowReminderInput] = useState(false);
-const [viewOnlyReminder, setViewOnlyReminder] = useState(null);
-
-
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [reminderText, setReminderText] = useState("");
+  const [showReminderInput, setShowReminderInput] = useState(false);
+  const [viewOnlyReminder, setViewOnlyReminder] = useState(null);
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false); // NEW STATE
 
   const isAdmin = currentUser?.role === "admin";
   const isUser = ["alumni", "student"].includes(currentUser?.role?.toLowerCase());
 
-
   // Fetch reminders for all users
-useEffect(() => {
-  axios
-    .get("http://localhost:5000/api/reminders")
-    .then((res) => setReminders(res.data))
-    .catch(() => setReminders([]));
-}, []);
-
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/reminders")
+      .then((res) => setReminders(res.data))
+      .catch(() => setReminders([]));
+  }, []);
 
   useEffect(() => {
     axios
@@ -147,63 +139,59 @@ useEffect(() => {
   const todayThought = THOUGHTS[dayIndex];
 
   // 📅 Handle day click
-const handleDateClick = (date) => {
-  setSelectedDate(date);
-  setShowReminderInput(true);
-};
+  const handleDateClick = (date) => {
+    setSelectedDate(date);
+    setShowReminderInput(true);
+    setIsReminderModalOpen(true); // NEW
+  };
 
-// Save reminder (Admin only)
-const handleSaveReminder = async () => {
-  if (!reminderText.trim()) return alert("Please enter a reminder!");
+  // Save reminder (Admin only)
+  const handleSaveReminder = async () => {
+    if (!reminderText.trim()) return alert("Please enter a reminder!");
 
-  try {
-    // If editing an existing reminder
-    const existing = reminders.find(
-      (r) => new Date(r.date).toDateString() === selectedDate?.toDateString()
-    );
-
-    if (existing) {
-      const res = await axios.put(
-        `http://localhost:5000/api/reminders/${existing._id}`,
-        { message: reminderText }
+    try {
+      // If editing an existing reminder
+      const existing = reminders.find(
+        (r) => new Date(r.date).toDateString() === selectedDate?.toDateString()
       );
 
-      setReminders((prev) =>
-        prev.map((r) => (r._id === existing._id ? res.data : r))
-      );
+      if (existing) {
+        const res = await axios.put(
+          `http://localhost:5000/api/reminders/${existing._id}`,
+          { message: reminderText }
+        );
 
-      alert("Reminder updated!");
-    } else {
-      // NEW reminder
-      const res = await axios.post("http://localhost:5000/api/reminders", {
-        date: selectedDate,
-        message: reminderText,
-        userId: currentUser?._id,
-      });
+        setReminders((prev) =>
+          prev.map((r) => (r._id === existing._id ? res.data : r))
+        );
 
-      setReminders((prev) => [...prev, res.data]);
-      alert("Reminder added!");
+        alert("Reminder updated!");
+      } else {
+        // NEW reminder
+        const res = await axios.post("http://localhost:5000/api/reminders", {
+          date: selectedDate,
+          message: reminderText,
+          userId: currentUser?._id,
+        });
+
+        setReminders((prev) => [...prev, res.data]);
+        alert("Reminder added!");
+      }
+
+      setShowReminderInput(false);
+      setIsReminderModalOpen(false); // NEW
+      setReminderText("");
+      setSelectedDate(null);
+    } catch (err) {
+      alert("Error saving reminder.");
     }
-
-    setShowReminderInput(false);
-    setReminderText("");
-  } catch (err) {
-    alert("Error saving reminder.");
-  }
-};
-
-
-
+  };
 
   return (
-
-    
     <div className="sticky top-6 space-y-6">
-
       {/* 🌟 Admin Section */}
       {isAdmin && (
         <Card className="fixed top-20 right-20 w-80 rounded-2xl border border-gray-200 shadow-lg bg-gradient-to-br from-white via-blue-50 to-blue-100 hover:shadow-blue-300/40 transition-all z-50">
-
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Mail className="w-5 h-5 text-blue-600" />
@@ -242,7 +230,7 @@ const handleSaveReminder = async () => {
                     </p>
                     {req.reason && (
                       <p className="text-xs text-gray-400 mt-1 italic">
-                        “{req.reason}”
+                        "{req.reason}"
                       </p>
                     )}
 
@@ -324,7 +312,7 @@ const handleSaveReminder = async () => {
                       </p>
                       {req.reason && (
                         <p className="text-xs text-gray-500 mt-1 italic">
-                          “{req.reason}”
+                          "{req.reason}"
                         </p>
                       )}
                     </div>
@@ -336,309 +324,310 @@ const handleSaveReminder = async () => {
         </Card>
       )}
 
-    {/* 🗓️ Calendar Section */}
-{isUser && (
-  <Card className="right-sidebar-calendar fixed top-[290px] right-10 w-[300px] md:w-[360px] h-[350px] rounded-3xl shadow-2xl border border-purple-300
-                   bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50
-                   overflow-hidden transition-all hover:shadow-purple-400/50 z-50 p-4">
-    <div className="flex items-center gap-2 mb-3">
-      <CalendarDays className="w-5 h-5 text-purple-700" />
-      <h2 className="text-x2 font-bold bg-gradient-to-r from-purple-700 to-blue-600 bg-clip-text text-transparent tracking-wide"> Set Reminders</h2>
-    </div>
-
-    <Calendar
-      style={{ width: "100%", height: "calc(100% - 50px)", backgroundColor: "transparent" }}
-      onClickDay={(date) => {
-  const existingReminder = reminders.find(
-    (r) => new Date(r.date).toDateString() === date.toDateString()
-  );
-  
-  setSelectedDate(date);
-
-  if (existingReminder) {
-    // show quick-view card
-   setViewOnlyReminder(existingReminder);
-
-    setShowReminderInput(false);
-  } else {
-    // create new reminder
-    setReminderText("");
-    setShowReminderInput(true);
-  }
-}}
-
-      value={selectedDate}
-      className="w-full text-sm md:text-base"
-      tileClassName={({ date, view }) => {
-  if (view !== "month") return "";
-
-  const hasReminder = reminders.some(
-    (r) => new Date(r.date).toDateString() === date.toDateString()
-  );
-  const isSelected =
-    selectedDate && date.toDateString() === selectedDate.toDateString();
-  const today = new Date().toDateString();
-  const isToday = date.toDateString() === today;
-
-  // base
-  let classes =
-    "flex items-center justify-center rounded-lg text-center transition-all duration-300 ease-in-out cursor-pointer w-[36px] h-[36px] md:w-[40px] md:h-[40px] m-[1px]";
-
-  // non-reminder default
-  if (!hasReminder) {
-    classes += " bg-white text-gray-800 hover:bg-purple-100 hover:text-purple-700 hover:scale-105";
-  }
-
-  // reminder day
-  if (hasReminder) {
-    classes += " bg-purple-600 text-white font-semibold shadow-md hover:scale-105 hover:shadow-lg";
-  }
-
-  // today's border (only when not selected)
-  if (isToday && !isSelected) {
-    classes += " border-2 border-purple-700 font-bold shadow-sm";
-  }
-
-  // ===== SELECTED (MUST BE LAST) =====
-  // Force selected to stay purple even on hover by using Tailwind's "!" modifier
-  // (requires Tailwind JIT / support for '!' utilities)
-  if (isSelected) {
-    classes +=
-      " !bg-blue-400 !text-white !font-bold !shadow-lg !ring-2 !ring-blue-400 hover:!bg-purple-700 hover:!text-white hover:!scale-100";
-  }
-
-  return classes;
-}}
-
-      formatDay={(locale, date) => date.getDate()}
-    />
-
-    {/* Custom CSS for navigation and weekdays */}
-    <style jsx>{`
-  /* Month navigation */
-  .react-calendar__navigation {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.25rem 0.5rem;
-    background-color: transparent;
-    margin-bottom: 0.25rem;
-  }
-  .react-calendar__navigation button {
-    min-width: 30px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #5b21b6; /* purple-700 */
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    transition: all 0.2s ease-in-out;
-  }
-  .react-calendar__navigation button:hover {
-    background-color: #d8b4fe; /* purple-200 */
-    transform: scale(1.1);
-  }
-
-  /* Weekday labels */
-  .react-calendar__month-view__weekdays {
-    text-align: center;
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #6b7280; /* gray-500 */
-    margin-bottom: 0.2rem;
-  }
-
-  /* Days grid spacing */
-  .react-calendar__month-view__days {
-    display: grid !important;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-  }
-
-  /* Neighboring month dates (previous/next month) */
-  .react-calendar__month-view__days__day--neighboringMonth {
-    color: #9ca3af; /* gray-400 */
-    opacity: 0.5; /* blur/faded effect */
-  }
-`}</style>
-
-  </Card>
-)}
-
-{/* 🔔 VIEW-ONLY REMINDER CARD */}
-{viewOnlyReminder && (
-  <div className="fixed inset-0 flex items-center justify-center z-50">
-    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
-
-    <div className="relative bg-white p-6 rounded-xl shadow-xl w-[90%] max-w-md z-10">
-      <h3 className="text-lg font-semibold text-purple-700 mb-3 text-center">
-        Reminder
-      </h3>
-
-      <p className="text-black-700 text-base text-center mb-4">
-        {viewOnlyReminder.message}
-      </p>
-
-      <div className="flex justify-center gap-3">
-        {/* EDIT */}
-        <Button
-          size="sm"
-          className="bg-blue-600 text-white px-5 py-1.5 rounded-full hover:bg-blue-700"
-          onClick={() => {
-            setReminderText(viewOnlyReminder.message);
-            setShowReminderInput(true);
-            setViewOnlyReminder(null);
-          }}
-        >
-          Edit
-        </Button>
-
-        <Button
-  size="sm"
-  className="bg-red-600 text-white px-5 py-1.5 rounded-full hover:bg-red-700"
-  onClick={async () => {
-    if (!confirm("Delete this reminder?")) return;
-
-    try {
-      await axios.delete(
-        `http://localhost:5000/api/reminders/${viewOnlyReminder._id}`
-      );
-
-      // Remove from all states that rely on reminders
-      setReminders((prev) =>
-        prev.filter((r) => r._id !== viewOnlyReminder._id)
-      );
-
-      if (
-        selectedDate &&
-        viewOnlyReminder.date &&
-        new Date(viewOnlyReminder.date).toDateString() ===
-          selectedDate.toDateString()
-      ) {
-        setSelectedDate(null); // Clear selection if deleted reminder was selected
-      }
-
-      setViewOnlyReminder(null);
-      setReminderText("");
-      setShowReminderInput(false);
-
-      alert("Reminder deleted!");
-    } catch (err) {
-      alert("Error deleting reminder.");
-    }
-  }}
->
-  Delete
-</Button>
-
-
-        {/* CLOSE */}
-        <Button
-          size="sm"
-          className="px-5 py-1.5 rounded-full border border-purple-500 text-purple-700 bg-white hover:bg-purple-50"
-          onClick={() => setViewOnlyReminder(null)}
-        >
-          Close
-        </Button>
-      </div>
-    </div>
-  </div>
-)}
-
-
-
-{/* Reminder Modal */}
-{showReminderInput && (
-  <div className="fixed inset-0 flex items-center justify-center z-50">
-    {/* Background overlay */}
-    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
-
-    {/* Modal content */}
-    <div className="relative bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6 rounded-3xl shadow-2xl w-[90%] max-w-md z-10 border border-purple-200">
-      
-      <p className="text-sm text-gray-700 mb-3 font-medium">
-        {reminders.some(
-          (r) => new Date(r.date).toDateString() === selectedDate?.toDateString()
-        )
-          ? `Reminder for ${selectedDate?.toDateString()}`
-          : `Set reminder for ${selectedDate?.toDateString()}`}
-      </p>
-
-      <textarea
-        className="w-full p-3 border border-purple-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
-        rows="4"
-        placeholder="Enter reminder message..."
-        value={reminderText}
-        onChange={(e) => setReminderText(e.target.value)}
-      />
-
-      <div className="flex justify-end mt-5 gap-3">
-        <Button
-          size="sm"
-          variant="secondary"
-          className="bg-white text-purple-700 border border-purple-400 hover:bg-purple-50 hover:text-purple-800 rounded-full px-4 py-1.5 transition-all"
-          onClick={() => setShowReminderInput(false)}
-        >
-          Close
-        </Button>
-
-        <Button
-          size="sm"
-          className="bg-purple-600 hover:bg-purple-700 text-white rounded-full px-4 py-1.5 shadow-md transition-all"
-          onClick={handleSaveReminder}
-        >
-          Save
-        </Button>
-      </div>
-    </div>
-  </div>
-)}
-
-
-
-
-      {/* 💭 Daily Thought Section */}
+      {/* 🗓️ Calendar Section */}
       {isUser && (
-        <Card className="fixed top-16 right-10 w-[320px] md:w-[360px]  md:h-[180px] rounded-3xl shadow-2xl border border-purple-200 
-               bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-100 
-               overflow-hidden transition-all hover:shadow-purple-300/50 z-50">
+        <Card className="right-sidebar-calendar fixed top-[290px] right-10 w-[300px] md:w-[360px] h-[350px] rounded-3xl shadow-2xl border border-purple-300
+                         bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50
+                         overflow-hidden transition-all hover:shadow-purple-400/50 z-50 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarDays className="w-5 h-5 text-purple-700" />
+            <h2 className="text-x2 font-bold bg-gradient-to-r from-purple-700 to-blue-600 bg-clip-text text-transparent tracking-wide"> Set Reminders</h2>
+          </div>
+
+          <Calendar
+            style={{ width: "100%", height: "calc(100% - 50px)", backgroundColor: "transparent" }}
+            onClickDay={(date) => {
+              const existingReminder = reminders.find(
+                (r) => new Date(r.date).toDateString() === date.toDateString()
+              );
+              
+              setSelectedDate(date);
+              setIsReminderModalOpen(true); // NEW
+
+              if (existingReminder) {
+                // show quick-view card
+                setViewOnlyReminder(existingReminder);
+                setShowReminderInput(false);
+              } else {
+                // create new reminder
+                setReminderText("");
+                setShowReminderInput(true);
+              }
+            }}
+            value={selectedDate}
+            className="w-full text-sm md:text-base"
+            tileClassName={({ date, view }) => {
+              if (view !== "month") return "";
+
+              const hasReminder = reminders.some(
+                (r) => new Date(r.date).toDateString() === date.toDateString()
+              );
+              const isSelected =
+                selectedDate && date.toDateString() === selectedDate.toDateString();
+              const today = new Date().toDateString();
+              const isToday = date.toDateString() === today;
+
+              // base
+              let classes =
+                "flex items-center justify-center rounded-lg text-center transition-all duration-300 ease-in-out cursor-pointer w-[36px] h-[36px] md:w-[40px] md:h-[40px] m-[1px]";
+
+              // non-reminder default
+              if (!hasReminder) {
+                classes += " bg-white text-gray-800 hover:bg-purple-100 hover:text-purple-700 hover:scale-105";
+              }
+
+              // reminder day
+              if (hasReminder) {
+                classes += " bg-purple-600 text-white font-semibold shadow-md hover:scale-105 hover:shadow-lg";
+              }
+
+              // today's border (only when not selected)
+              if (isToday && !isSelected) {
+                classes += " border-2 border-purple-700 font-bold shadow-sm";
+              }
+
+              // ===== SELECTED (MUST BE LAST) =====
+              // Force selected to stay purple even on hover by using Tailwind's "!" modifier
+              if (isSelected) {
+                classes +=
+                  " !bg-blue-400 !text-white !font-bold !shadow-lg !ring-2 !ring-blue-400 hover:!bg-purple-700 hover:!text-white hover:!scale-100";
+              }
+
+              return classes;
+            }}
+            formatDay={(locale, date) => date.getDate()}
+          />
+
+          {/* Custom CSS for navigation and weekdays */}
+          <style jsx>{`
+            /* Month navigation */
+            .react-calendar__navigation {
+              display: flex;
+              justify-content: space-between;
+              padding: 0.25rem 0.5rem;
+              background-color: transparent;
+              margin-bottom: 0.25rem;
+            }
+            .react-calendar__navigation button {
+              min-width: 30px;
+              font-size: 0.85rem;
+              font-weight: 600;
+              color: #5b21b6; /* purple-700 */
+              background: transparent;
+              border: none;
+              border-radius: 6px;
+              transition: all 0.2s ease-in-out;
+            }
+            .react-calendar__navigation button:hover {
+              background-color: #d8b4fe; /* purple-200 */
+              transform: scale(1.1);
+            }
+
+            /* Weekday labels */
+            .react-calendar__month-view__weekdays {
+              text-align: center;
+              text-transform: uppercase;
+              font-size: 0.7rem;
+              font-weight: 600;
+              color: #6b7280; /* gray-500 */
+              margin-bottom: 0.2rem;
+            }
+
+            /* Days grid spacing */
+            .react-calendar__month-view__days {
+              display: grid !important;
+              grid-template-columns: repeat(7, 1fr);
+              gap: 4px;
+            }
+
+            /* Neighboring month dates (previous/next month) */
+            .react-calendar__month-view__days__day--neighboringMonth {
+              color: #9ca3af; /* gray-400 */
+              opacity: 0.5; /* blur/faded effect */
+            }
+          `}</style>
+        </Card>
+      )}
+
+      {/* 🔔 VIEW-ONLY REMINDER CARD */}
+      {viewOnlyReminder && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+
+          <div className="relative bg-white p-6 rounded-xl shadow-xl w-[90%] max-w-md z-10">
+            <h3 className="text-lg font-semibold text-purple-700 mb-3 text-center">
+              Reminder
+            </h3>
+
+            <p className="text-black-700 text-base text-center mb-4">
+              {viewOnlyReminder.message}
+            </p>
+
+            <div className="flex justify-center gap-3">
+              {/* EDIT */}
+              <Button
+                size="sm"
+                className="bg-blue-600 text-white px-5 py-1.5 rounded-full hover:bg-blue-700"
+                onClick={() => {
+                  setReminderText(viewOnlyReminder.message);
+                  setShowReminderInput(true);
+                  setViewOnlyReminder(null);
+                  setIsReminderModalOpen(true); // NEW
+                }}
+              >
+                Edit
+              </Button>
+
+              <Button
+                size="sm"
+                className="bg-red-600 text-white px-5 py-1.5 rounded-full hover:bg-red-700"
+                onClick={async () => {
+                  if (!confirm("Delete this reminder?")) return;
+
+                  try {
+                    await axios.delete(
+                      `http://localhost:5000/api/reminders/${viewOnlyReminder._id}`
+                    );
+
+                    // Remove from all states that rely on reminders
+                    setReminders((prev) =>
+                      prev.filter((r) => r._id !== viewOnlyReminder._id)
+                    );
+
+                    if (
+                      selectedDate &&
+                      viewOnlyReminder.date &&
+                      new Date(viewOnlyReminder.date).toDateString() ===
+                        selectedDate.toDateString()
+                    ) {
+                      setSelectedDate(null); // Clear selection if deleted reminder was selected
+                    }
+
+                    setViewOnlyReminder(null);
+                    setIsReminderModalOpen(false); // NEW
+                    setReminderText("");
+                    setShowReminderInput(false);
+
+                    alert("Reminder deleted!");
+                  } catch (err) {
+                    alert("Error deleting reminder.");
+                  }
+                }}
+              >
+                Delete
+              </Button>
+
+              {/* CLOSE */}
+              <Button
+                size="sm"
+                className="px-5 py-1.5 rounded-full border border-purple-500 text-purple-700 bg-white hover:bg-purple-50"
+                onClick={() => {
+                  setViewOnlyReminder(null);
+                  setIsReminderModalOpen(false); // NEW
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reminder Modal */}
+      {showReminderInput && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          {/* Background overlay */}
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+
+          {/* Modal content */}
+          <div className="relative bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6 rounded-3xl shadow-2xl w-[90%] max-w-md z-10 border border-purple-200">
+            <p className="text-sm text-gray-700 mb-3 font-medium">
+              {reminders.some(
+                (r) => new Date(r.date).toDateString() === selectedDate?.toDateString()
+              )
+                ? `Reminder for ${selectedDate?.toDateString()}`
+                : `Set reminder for ${selectedDate?.toDateString()}`}
+            </p>
+
+            <textarea
+              className="w-full p-3 border border-purple-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+              rows="4"
+              placeholder="Enter reminder message..."
+              value={reminderText}
+              onChange={(e) => setReminderText(e.target.value)}
+            />
+
+            <div className="flex justify-end mt-5 gap-3">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="bg-white text-purple-700 border border-purple-400 hover:bg-purple-50 hover:text-purple-800 rounded-full px-4 py-1.5 transition-all"
+                onClick={() => {
+                  setShowReminderInput(false);
+                  setIsReminderModalOpen(false); // NEW
+                  setReminderText("");
+                  setSelectedDate(null);
+                }}
+              >
+                Close
+              </Button>
+
+              <Button
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white rounded-full px-4 py-1.5 shadow-md transition-all"
+                onClick={handleSaveReminder}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 💭 Daily Thought Section - WITH BLUR EFFECT */}
+      {isUser && (
+        <Card className={`fixed top-16 right-10 w-[320px] md:w-[360px] md:h-[180px] rounded-3xl shadow-2xl border border-purple-200 
+                         bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-100 
+                         overflow-hidden transition-all duration-300 z-40
+                         ${
+                           (isReminderModalOpen || viewOnlyReminder)
+                             ? 'blur-sm scale-[0.95] opacity-60 backdrop-blur-sm bg-black/10 hover:shadow-purple-300/20'
+                             : 'hover:shadow-purple-300/50'
+                         }`}>
           {/* ✨ 3 Small Floating Sparkles */}
-     {/* ✨ Floating Corner Stars (Component-Scoped Animation) */}
-<style jsx>{`
-  @keyframes floatStar {
-    0%, 100% {
-      transform: translateY(0) rotate(0deg);
-      opacity: 0.9;
-    }
-    50% {
-      transform: translateY(-10px) rotate(10deg);
-      opacity: 1;
-    }
-  }
-  .floatStar {
-    animation: floatStar 4s ease-in-out infinite;
-  }
-`}</style>
+          <style jsx>{`
+            @keyframes floatStar {
+              0%, 100% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0.9;
+              }
+              50% {
+                transform: translateY(-10px) rotate(10deg);
+                opacity: 1;
+              }
+            }
+            .floatStar {
+              animation: floatStar 4s ease-in-out infinite;
+            }
+          `}</style>
 
-<div className="absolute inset-0 pointer-events-none overflow-hidden">
-  {/* Top-right star */}
-  <Sparkles
-    className="absolute w-5 h-5 text-yellow-400 opacity-80 floatStar"
-    style={{ top: "10%", right: "8%" }}
-  />
-  {/* Bottom-left star */}
-  <Sparkles
-    className="absolute w-6 h-6 text-yellow-400 opacity-75 floatStar"
-    style={{ bottom: "12%", left: "10%" }}
-  />
-  {/* Optional middle sparkle */}
-  <Sparkles
-    className="absolute w-4 h-4 text-yellow-300 opacity-70 floatStar"
-    style={{ bottom: "35%", right: "40%" }}
-  />
-</div>
-
-
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {/* Top-right star */}
+            <Sparkles
+              className="absolute w-5 h-5 text-yellow-400 opacity-80 floatStar"
+              style={{ top: "10%", right: "8%" }}
+            />
+            {/* Bottom-left star */}
+            <Sparkles
+              className="absolute w-6 h-6 text-yellow-400 opacity-75 floatStar"
+              style={{ bottom: "12%", left: "10%" }}
+            />
+            {/* Optional middle sparkle */}
+            <Sparkles
+              className="absolute w-4 h-4 text-yellow-300 opacity-70 floatStar"
+              style={{ bottom: "35%", right: "40%" }}
+            />
+          </div>
 
           <CardContent className="p-6 relative z-10">
             <div className="flex items-center justify-between mb-5">
@@ -651,15 +640,14 @@ const handleSaveReminder = async () => {
             </div>
 
             <p className="text-base md:text-lg font-medium italic text-gray-800 leading-relaxed text-center">
-              “{todayThought}”
+              "{todayThought}"
             </p>
 
             {reminders.find(r => new Date(r.date).toDateString() === today.toDateString()) && (
-  <div className="mt-4 p-3 bg-yellow-100 rounded-lg border border-yellow-300 text-sm text-gray-800 text-center">
-    🔔 <strong>Reminder:</strong> {reminders.find(r => new Date(r.date).toDateString() === today.toDateString()).message}
-  </div>
-)}
-
+              <div className="mt-4 p-3 bg-yellow-100 rounded-lg border border-yellow-300 text-sm text-gray-800 text-center">
+                🔔 <strong>Reminder:</strong> {reminders.find(r => new Date(r.date).toDateString() === today.toDateString()).message}
+              </div>
+            )}
 
             <div className="mt-4 h-[2px] bg-gradient-to-r from-purple-400 via-blue-400 to-pink-400 rounded-full animate-pulse" />
             <p className="text-xs text-gray-500 text-right mt-3 italic">
@@ -668,11 +656,6 @@ const handleSaveReminder = async () => {
           </CardContent>
         </Card>
       )}
-
-      
     </div>
   );
 }
-
-
-
