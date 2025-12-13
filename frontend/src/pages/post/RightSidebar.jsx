@@ -326,7 +326,7 @@ export default function RightSidebar() {
 
       {/* 🗓️ Calendar Section */}
       {isUser && (
-        <Card className="right-sidebar-calendar fixed top-[290px] right-10 w-[300px] md:w-[360px] h-[350px] rounded-3xl shadow-2xl border border-purple-300
+        <Card className="right-sidebar-calendar fixed top-[260px] right-10 w-[300px] md:w-[360px] h-[345px] rounded-3xl shadow-2xl border border-purple-300
                          bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50
                          overflow-hidden transition-all hover:shadow-purple-400/50 z-50 p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -586,7 +586,7 @@ export default function RightSidebar() {
 
       {/* 💭 Daily Thought Section - WITH BLUR EFFECT */}
       {isUser && (
-        <Card className={`fixed top-16 right-10 w-[320px] md:w-[360px] md:h-[180px] rounded-3xl shadow-2xl border border-purple-200 
+        <Card className={`fixed top-14 right-10 w-[320px] md:w-[360px] md:h-[160px] rounded-3xl shadow-2xl border border-purple-200 
                          bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-100 
                          overflow-hidden transition-all duration-300 z-40
                          ${

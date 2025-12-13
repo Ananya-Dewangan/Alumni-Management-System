@@ -18,6 +18,8 @@ import EmailChangeRequestPage from "./pages/profile/EmailChangeRequestPage";
 import ReminderPage from "./pages/ReminderPage";
 import Contribute from "./pages/donations/Contribute";
 import AdminRequests from "./pages/donations/AdminRequests";
+import AdminProtected from "./components/AdminProtected";
+import DonationDetails from "./pages/donations/DonationDetails";
 
 
 // ✅ Import your new Admin Data Export page
@@ -58,6 +60,11 @@ export default function App() {
         <Route path="/event/:id" element={<EventPage />} />
         <Route path="/profile/:id" element={<ProfilePage />} />
          <Route path="/reminders/:date" element={<ReminderPage />} />
+         <Route path="/admin/donations/:id" element={
+          <AdminProtected>
+            <DonationDetails />
+          </AdminProtected>
+        } />
       </Routes>
     </BrowserRouter>
   );
