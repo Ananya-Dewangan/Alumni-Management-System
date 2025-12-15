@@ -9,6 +9,10 @@ const donationSchema = new mongoose.Schema({
   razorpayOrderId: { type: String },
   razorpaySignature: { type: String },
   receiptPath: { type: String },
+
+  // ✅ NEW: store human-readable filename like "Campaign_Donor.pdf"
+  receiptFilename: { type: String, default: null },
+
   createdAt: { type: Date, default: Date.now }
 });
 

@@ -1,5 +1,4 @@
-// Replace the ENTIRE receiptService.js with this:
-
+// backend/utils/receiptService.js
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
@@ -10,6 +9,15 @@ import User from "../models/User.js";
 
 const receiptsDir = path.join(process.cwd(), "uploads", "receipts");
 mkdirp.sync(receiptsDir);
+
+// ✅ helper to sanitize filename parts
+function sanitizeFilename(str) {
+  return (str || "")
+    .replace(/[^a-zA-Z0-9\s_-]/g, "") // keep safe chars
+    .replace(/\s+/g, "_")             // spaces -> _
+    .trim()
+    .substring(0, 100);               // avoid crazy-long names
+}
 
 export async function generateReceiptPdf(donationId) {
   if (!donationId) throw new Error("donationId is required");
@@ -33,23 +41,38 @@ export async function generateReceiptPdf(donationId) {
   const campaignTitle = donation.requestId?.title || "Donation";
 
   // Accept a variety of payment/order field names
-  const paymentId = donation.paymentId || donation.razorpayPaymentId || donation.payment?.id || donation.txnId || "N/A";
-  const orderId = donation.orderId || donation.razorpayOrderId || donation.payment?.orderId || donation.order || "N/A";
+  const paymentId =
+    donation.paymentId ||
+    donation.razorpayPaymentId ||
+    donation.payment?.id ||
+    donation.txnId ||
+    "N/A";
+  const orderId =
+    donation.orderId ||
+    donation.razorpayOrderId ||
+    donation.payment?.orderId ||
+    donation.order ||
+    "N/A";
 
   // Clean IDs (remove MOCK_ prefix)
-  const cleanPaymentId = paymentId.replace(/^MOCK_(PAY|PAYMENT)_?/i, '');
-  const cleanOrderId = orderId.replace(/^MOCK_(ORDER)_?/i, '');
+  const cleanPaymentId = paymentId.replace(/^MOCK_(PAY|PAYMENT)_?/i, "");
+  const cleanOrderId = orderId.replace(/^MOCK_(ORDER)_?/i, "");
 
   // Safe receipt ID (fallback if donationId not string)
-  const receiptId = typeof donationId === 'string' ? donationId.slice(-8).toUpperCase() : donationId.toString().slice(-8).toUpperCase();
+  const receiptId =
+    typeof donationId === "string"
+      ? donationId.slice(-8).toUpperCase()
+      : donationId.toString().slice(-8).toUpperCase();
 
-  // filename
-  const filename = `receipt_${donationId}.pdf`;
+  // ✅ NEW: descriptive filename: Campaign_Title_Donor_Name.pdf
+  const safeCampaign = sanitizeFilename(campaignTitle);
+  const safeDonor = sanitizeFilename(donorName);
+  const filename = `${safeCampaign || "Donation"}_${safeDonor || "Donor"}.pdf`;
   const savePath = path.join(receiptsDir, filename);
 
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 0, size: 'A4' });
+      const doc = new PDFDocument({ margin: 0, size: "A4" });
       const stream = fs.createWriteStream(savePath);
       doc.pipe(stream);
 
@@ -125,7 +148,7 @@ export async function generateReceiptPdf(donationId) {
       doc.fontSize(10).font("Helvetica-Bold").text(cleanOrderId, 280, boxY + 80);
       
       doc.fontSize(9).fillColor("black").text("Date:", 50, boxY + 70);
-      doc.fontSize(10).font("Helvetica-Bold").text(new Date(donation.createdAt).toLocaleString('en-IN'), 50, boxY + 80);
+      doc.fontSize(10).font("Helvetica-Bold").text(new Date(donation.createdAt).toLocaleString("en-IN"), 50, boxY + 80);
 
       // Thank you
       doc.fillColor("#1e40af").fontSize(12).font("Helvetica-Bold")
@@ -143,7 +166,13 @@ export async function generateReceiptPdf(donationId) {
 
       doc.end();
 
-      stream.on("finish", () => resolve(savePath));
+      // ⚠️ return path stays the same type (string) for compatibility
+      stream.on("finish", () => {
+        resolve({
+          fullPath: savePath,
+          filename,          // e.g. Campaign_Title_Donor_Name.pdf
+        });
+      });
       stream.on("error", (err) => reject(err));
     } catch (err) {
       console.error("generateReceiptPdf error:", err);

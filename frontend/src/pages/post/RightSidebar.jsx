@@ -1,3 +1,4 @@
+// frontend/src/pages/post/RightSidebar.jsx
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
@@ -399,7 +400,8 @@ export default function RightSidebar() {
           />
 
           {/* Custom CSS for navigation and weekdays */}
-          <style jsx>{`
+          {/* Custom CSS for navigation and weekdays */}
+          <style>{`
             /* Month navigation */
             .react-calendar__navigation {
               display: flex;
@@ -446,6 +448,7 @@ export default function RightSidebar() {
               opacity: 0.5; /* blur/faded effect */
             }
           `}</style>
+
         </Card>
       )}
 
@@ -595,7 +598,7 @@ export default function RightSidebar() {
                              : 'hover:shadow-purple-300/50'
                          }`}>
           {/* ✨ 3 Small Floating Sparkles */}
-          <style jsx>{`
+          <style>{`
             @keyframes floatStar {
               0%, 100% {
                 transform: translateY(0) rotate(0deg);
@@ -610,7 +613,6 @@ export default function RightSidebar() {
               animation: floatStar 4s ease-in-out infinite;
             }
           `}</style>
-
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {/* Top-right star */}
             <Sparkles

@@ -159,14 +159,13 @@ router.post("/payment/order", verifyToken, async (req, res) => {
   }
 });
 
-
 /* ------------------------------------------------------------------
    💳 MOCK PAYMENT VERIFY + CREATE DONATION + RECEIPT + EMAIL + SMS
 --------------------------------------------------------------------- */
 router.post("/payment/verify", verifyToken, async (req, res) => {
   try {
     const { orderId, requestId, amount, paymentId, signature } = req.body;
-        console.log("VERIFY BODY:", req.body);
+    console.log("VERIFY BODY:", req.body);
     console.log("TYPES:", {
       orderId: typeof orderId,
       requestId: typeof requestId,
@@ -195,11 +194,23 @@ router.post("/payment/verify", verifyToken, async (req, res) => {
 
     await donation.save();
 
+    // ✅ NEW: get campaign + donor name for filename
+    const campaign = await DonationRequest.findById(requestId).lean();
+    const donorName =
+      `${req.user.firstname || ""} ${req.user.lastname || ""}`.trim() ||
+      req.user.name ||
+      "Donor";
+    const campaignTitle = campaign?.title || "Donation Campaign";
+
     // Step 3: Generate Receipt PDF (with error handling)
     let receiptPath = null;
     try {
-      receiptPath = await generateReceiptPdf(donation._id);
+      const receiptResult = await generateReceiptPdf(donation._id);
+      receiptPath = receiptResult.fullPath || receiptResult; // backward‑safe
       donation.receiptPath = receiptPath;
+      if (receiptResult.filename) {
+        donation.receiptFilename = receiptResult.filename;   // store nice name
+      }
       await donation.save();
       console.log("✅ Receipt generated:", receiptPath);
     } catch (pdfErr) {
@@ -213,10 +224,13 @@ router.post("/payment/verify", verifyToken, async (req, res) => {
     });
 
     // Step 5: Send Email
-    const campaign = await DonationRequest.findById(requestId).lean();
+    // (re-use `campaign` from above)
     await sendDonationEmail({
       to: req.user.email,
-      name: `${req.user.firstname || ""} ${req.user.lastname || ""}`.trim() || req.user.name || "Donor",
+      name:
+        `${req.user.firstname || ""} ${req.user.lastname || ""}`.trim() ||
+        req.user.name ||
+        "Donor",
       amount,
       campaignTitle: campaign?.title || "Donation Campaign",
       paymentId: donation.razorpayPaymentId,
@@ -226,14 +240,21 @@ router.post("/payment/verify", verifyToken, async (req, res) => {
     // Step 6: Send SMS (optional)
     if (req.user.contact_no) {
       try {
-        const campaign = await DonationRequest.findById(requestId).lean();
-        const cleanPaymentId = donation.razorpayPaymentId.replace(/^MOCK_(PAY|PAYMENT)_?/i, '');
-        const smsMsg = `✅ Thank you ${req.user.firstname || req.user.name}! ₹${amount} donated to ${campaign?.title || "Donation"}. Ref: ${cleanPaymentId}`;
-        
-        await sendSms({ 
-          toNumber: req.user.contact_no, 
+        const campaignAgain = await DonationRequest.findById(requestId).lean();
+        const cleanPaymentId = donation.razorpayPaymentId.replace(
+          /^MOCK_(PAY|PAYMENT)_?/i,
+          ""
+        );
+        const smsMsg = `✅ Thank you ${
+          req.user.firstname || req.user.name
+        }! ₹${amount} donated to ${
+          campaignAgain?.title || "Donation"
+        }. Ref: ${cleanPaymentId}`;
+
+        await sendSms({
+          toNumber: req.user.contact_no,
           message: smsMsg,
-          paymentId: donation.razorpayPaymentId  // Pass full ID for cleaning
+          paymentId: donation.razorpayPaymentId, // Pass full ID for cleaning
         });
         console.log("✅ SMS sent successfully");
       } catch (smsErr) {
@@ -242,13 +263,11 @@ router.post("/payment/verify", verifyToken, async (req, res) => {
       }
     }
 
-
     // Step 7: Respond to frontend
     return res.json({
       success: true,
       message: "Payment verified (MOCK), Donation saved, Email & Receipt sent",
     });
-
   } catch (err) {
     console.error("Mock verify error:", err);
     return res.status(500).json({
@@ -262,11 +281,10 @@ router.post("/payment/verify", verifyToken, async (req, res) => {
 //------------------------------------------------------------
 // 🟢 Get My Donations (logged-in user)
 //------------------------------------------------------------
-
 router.get("/my", verifyToken, async (req, res) => {
   try {
     const donations = await Donation.find({ donorId: req.user._id })
-      .populate("requestId")   // so we get campaign title
+      .populate("requestId") // so we get campaign title
       .sort({ createdAt: -1 });
 
     res.json({ donations });
@@ -282,44 +300,56 @@ router.get("/my", verifyToken, async (req, res) => {
 router.get("/receipt/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const donation = await Donation.findOne({ 
-      _id: id, 
-      donorId: req.user._id 
+
+    const donation = await Donation.findOne({
+      _id: id,
+      donorId: req.user._id,
     }).populate("requestId");
-    
+
     if (!donation) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Receipt not found or access denied" 
+      return res.status(404).json({
+        success: false,
+        message: "Receipt not found or access denied",
       });
     }
 
-    // Show helpful message instead of "not generated yet"
     if (!donation.receiptPath) {
-      return res.status(200).json({ 
-        success: false, 
-        message: "Receipt generation failed. Please contact support or try donating again.",
-        donationId: id
+      return res.status(200).json({
+        success: false,
+        message:
+          "Receipt generation failed. Please contact support or try donating again.",
+        donationId: id,
       });
     }
 
-    const receiptPath = path.join(process.cwd(), "uploads", "receipts", path.basename(donation.receiptPath));
-    const isViewMode = req.query.view === 'true';
-    
-    if (fs.existsSync(receiptPath)) {
-      res.set({
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': isViewMode ? 'inline' : 'attachment; filename="receipt.pdf"',
-        'Content-Length': fs.statSync(receiptPath).size
+    const receiptPath = path.join(
+      process.cwd(),
+      "uploads",
+      "receipts",
+      path.basename(donation.receiptPath)
+    );
+    const isViewMode = req.query.view === "true";
+
+    if (!fs.existsSync(receiptPath)) {
+      return res.status(404).json({
+        success: false,
+        message: "Receipt file missing on server",
       });
-    } else {
-      res.status(404).json({ 
-        success: false, 
-        message: "Receipt file missing on server" 
-      });
-      fs.createReadStream(receiptPath).pipe(res);
     }
+
+    // ✅ use descriptive filename if present, else fallback
+    const downloadFilename = donation.receiptFilename || "receipt.pdf";
+
+    // ✅ success path: set headers and stream file
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": isViewMode
+        ? `inline; filename="${downloadFilename}"`
+        : `attachment; filename="${downloadFilename}"`,
+      "Content-Length": fs.statSync(receiptPath).size,
+    });
+
+    fs.createReadStream(receiptPath).pipe(res);
   } catch (err) {
     console.error("Receipt route error:", err);
     res.status(500).json({ success: false, message: "Server error" });
@@ -327,7 +357,7 @@ router.get("/receipt/:id", verifyToken, async (req, res) => {
 });
 
 /* -------------------------------------------------------
-  ADMIN: Get ALL donations for a specific campaign
+   ADMIN: Get ALL donations for a specific campaign
 ------------------------------------------------------- */
 router.get("/admin/:requestId/donations", verifyAdmin, async (req, res) => {
   try {
@@ -378,14 +408,26 @@ router.get("/admin/receipt/:donationId", verifyAdmin, async (req, res) => {
     }
 
     // Serve the EXACT SAME receipt file donor gets
-    const receiptPath = path.join(process.cwd(), "uploads", "receipts", path.basename(donation.receiptPath));
+    const receiptPath = path.join(
+      process.cwd(),
+      "uploads",
+      "receipts",
+      path.basename(donation.receiptPath)
+    );
+
+    // ✅ use descriptive filename if present, else fallback to previous pattern
+    const downloadFilename =
+      donation.receiptFilename || `admin-receipt-${donationId}.pdf`;
     
     if (fs.existsSync(receiptPath)) {
-      res.download(receiptPath, `admin-receipt-${donationId}.pdf`, (err) => {
+      res.download(receiptPath, downloadFilename, (err) => {
         if (err) {
           console.error("Admin receipt download error:", err);
           if (!res.headersSent) {
-            res.status(500).json({ success: false, message: "Download failed" });
+            res.status(500).json({
+              success: false,
+              message: "Download failed",
+            });
           }
         }
       });
@@ -413,14 +455,19 @@ router.get("/admin/receipt/:donationId/view", verifyAdmin, async (req, res) => {
       return res.status(404).json({ success: false, message: "Receipt not found" });
     }
 
-    const receiptPath = path.join(process.cwd(), "uploads", "receipts", path.basename(donation.receiptPath));
+    const receiptPath = path.join(
+      process.cwd(),
+      "uploads",
+      "receipts",
+      path.basename(donation.receiptPath)
+    );
     
     if (fs.existsSync(receiptPath)) {
       // INLINE = View in browser
       res.set({
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline',
-        'Content-Length': fs.statSync(receiptPath).size
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline",
+        "Content-Length": fs.statSync(receiptPath).size,
       });
       fs.createReadStream(receiptPath).pipe(res);
     } else {
