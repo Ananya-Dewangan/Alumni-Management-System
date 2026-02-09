@@ -25,6 +25,9 @@ export default function EventPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  // 🔍 Image Preview State
+  const [previewImage, setPreviewImage] = useState(null);
+
   const navigate = useNavigate();
 
   // ✅ Fetch current user
@@ -37,7 +40,6 @@ export default function EventPage() {
         setCurrentUser(res.data);
         if (!res.data._id || !res.data.username) navigate("/auth");
       } catch (err) {
-        console.error("Error fetching current user:", err);
         navigate("/auth");
       }
     };
@@ -53,7 +55,7 @@ export default function EventPage() {
       setEvents(res.data);
       setFilteredEvents(res.data);
     } catch (err) {
-      console.error("Error fetching events:", err);
+      console.error(err);
     }
   };
 
@@ -61,21 +63,23 @@ export default function EventPage() {
     fetchEvents();
   }, []);
 
-  // ✅ Search Functionality
+  // 🔍 Search
   const handleSearch = () => {
     const filtered = events.filter((event) => {
       const matchesSearch = event.title
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
+
       const eventDate = new Date(event.date);
       const matchesStart = startDate ? eventDate >= new Date(startDate) : true;
       const matchesEnd = endDate ? eventDate <= new Date(endDate) : true;
+
       return matchesSearch && matchesStart && matchesEnd;
     });
     setFilteredEvents(filtered);
   };
 
-  // ✅ Create event
+  // ➕ Create Event
   const createEvent = async () => {
     try {
       const formData = new FormData();
@@ -103,7 +107,7 @@ export default function EventPage() {
     }
   };
 
-  // ✅ Participate / Cancel
+  // 🙋 Participate
   const participate = async (id) => {
     try {
       await axios.post(
@@ -126,13 +130,13 @@ export default function EventPage() {
       );
       fetchEvents();
     } catch (err) {
-      console.error("Error canceling participation:", err);
+      console.error(err);
     }
   };
 
-  // ✅ Delete Event
+  // ❌ Delete Event
   const deleteEvent = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this event?")) return;
+    if (!window.confirm("Delete this event?")) return;
     try {
       await axios.delete(`http://localhost:5000/api/events/${id}`, {
         withCredentials: true,
@@ -143,7 +147,7 @@ export default function EventPage() {
     }
   };
 
-  // ✅ View Participants
+  // 👥 View Participants
   const viewParticipants = async (eventId, title) => {
     try {
       const res = await axios.get(
@@ -158,277 +162,164 @@ export default function EventPage() {
     }
   };
 
-  // ✅ Download participants as Excel
+  // 📥 Download Excel
   const downloadParticipantsExcel = () => {
-    if (!participants.length)
-      return alert("No participants to download.");
+    if (!participants.length) return alert("No participants");
 
-    const data = participants.map((p, idx) => ({
-      "S.No": idx + 1,
-      Name: p.username || "",
-      Email: p.email || "",
-      Role: p.role || "",
+    const data = participants.map((p, i) => ({
+      "S.No": i + 1,
+      Name: p.username,
+      Email: p.email,
+      Role: p.role,
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Participants");
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Participants");
 
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-    const blob = new Blob([excelBuffer], {
-      type: "application/octet-stream",
-    });
-    const safeTitle = (selectedEventTitle || "event").replace(
-      /[/\\?%*:|"<>]/g,
-      "_"
-    );
-    saveAs(blob, `${safeTitle}_participants.xlsx`);
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([buffer], { type: "application/octet-stream" });
+
+    saveAs(blob, `${selectedEventTitle}_participants.xlsx`);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-purple-50">
       <LinkedInHeader />
 
-      {/* 🔍 Search Section */}
       <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div className="md:col-span-1 sticky top-24 h-fit bg-white/80 backdrop-blur-lg border border-indigo-100 rounded-3xl shadow-lg p-6">
-          <h2 className="text-lg font-semibold text-indigo-800 mb-5 text-center">
-            🎯 Event Search
-          </h2>
-
+        {/* 🔍 Search */}
+        <div className="bg-white rounded-3xl p-6 shadow-lg sticky top-24">
           <input
-            type="text"
-            placeholder="Search by event title"
+            placeholder="Search event"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border border-indigo-200 p-2 rounded-lg w-full mb-3 focus:ring-2 focus:ring-indigo-300 outline-none"
+            className="border p-2 w-full rounded mb-3"
           />
-          <label className="text-sm text-gray-600">Start Date</label>
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="border border-indigo-200 p-2 rounded-lg w-full mb-3"
+            className="border p-2 w-full rounded mb-3"
           />
-          <label className="text-sm text-gray-600">End Date</label>
           <input
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="border border-indigo-200 p-2 rounded-lg w-full mb-5"
+            className="border p-2 w-full rounded mb-3"
           />
           <button
             onClick={handleSearch}
-            className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 text-white py-2 rounded-full font-semibold hover:scale-105 transition-transform"
+            className="w-full bg-indigo-600 text-white py-2 rounded"
           >
-            🔍 Search Events
+            Search
           </button>
         </div>
 
-        {/* 📅 Event List */}
+        {/* 📅 Events */}
         <div className="md:col-span-3">
-          {filteredEvents.length === 0 ? (
-            <p className="text-center text-gray-500 mt-16 text-lg">
-              No events found.
-            </p>
-          ) : (
-            filteredEvents.map((event) => (
-              <div
-                key={event._id}
-                className="bg-gradient-to-r from-blue-100 via-indigo-100 to-purple-100 rounded-3xl overflow-hidden shadow-xl mb-10"
-              >
-                {event.image && (
-                  <img
-                    src={event.image}
-                    alt="Event Banner"
-                    className="w-full h-80 object-cover"
-                  />
-                )}
-                <div className="p-6">
-                  <h2 className="text-2xl font-bold text-indigo-800 mb-2">
-                    {event.title}
-                  </h2>
-                  <p className="text-gray-700 mb-3 leading-relaxed">
-                    {event.description}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-1">
-                    📅 {new Date(event.date).toLocaleDateString()}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-1">
-                    🎟 Seats: {event.participants.length}/{event.seats}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    👤 Created by: {event.createdBy?.username}
-                  </p>
-                </div>
+          {filteredEvents.map((event) => (
+            <div
+              key={event._id}
+              className="bg-white rounded-3xl shadow-lg mb-8 overflow-hidden"
+            >
+              {event.image && (
+  <div
+    className="relative group cursor-pointer"
+    onClick={() => setPreviewImage(event.image)}
+  >
+    <img
+      src={event.image}
+      alt="Event"
+      className="w-full h-80 object-cover"
+    />
 
-                <Separator className="my-2" />
+    {/* Hover overlay */}
+    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+      <span className="text-white text-lg font-semibold">
+        Tap to view
+      </span>
+    </div>
+  </div>
+)}
 
-                {/* Participate Buttons */}
-                <div className="flex justify-between items-center px-6 pb-5 text-sm">
-                  <span className="text-gray-700">
-                    👥 Participants: {event.participants.length}
-                  </span>
 
-                  {(currentUser?.role === "student" ||
-                    currentUser?.role === "alumni") &&
-                    (event.participants.some(
-                      (p) => p._id === currentUser._id
-                    ) ? (
-                      <button
-                        onClick={() => cancelParticipation(event._id)}
-                        className="px-5 py-2 rounded-full bg-gradient-to-r from-rose-500 to-red-500 text-white hover:scale-105"
-                      >
-                        Cancel
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => participate(event._id)}
-                        className="px-5 py-2 rounded-full bg-gradient-to-r from-green-500 to-teal-500 text-white hover:scale-105"
-                      >
-                        Participate
-                      </button>
-                    ))}
-                </div>
+              <div className="p-6">
+                <h2 className="text-xl font-bold">{event.title}</h2>
+                <p className="text-gray-600">{event.description}</p>
+                <p className="text-sm mt-2">
+                  📅 {new Date(event.date).toLocaleDateString()}
+                </p>
+                <p className="text-sm">
+                  🎟 {event.participants.length}/{event.seats}
+                </p>
+              </div>
 
-                {/* Admin Actions */}
+              <Separator />
+
+              <div className="flex justify-between p-4">
+                {(currentUser?.role === "student" ||
+                  currentUser?.role === "alumni") &&
+                  (event.participants.some(
+                    (p) => p._id === currentUser._id
+                  ) ? (
+                    <button
+                      onClick={() => cancelParticipation(event._id)}
+                      className="bg-red-500 text-white px-4 py-2 rounded"
+                    >
+                      Cancel
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => participate(event._id)}
+                      className="bg-green-600 text-white px-4 py-2 rounded"
+                    >
+                      Participate
+                    </button>
+                  ))}
+
                 {(currentUser?._id === event.createdBy?._id ||
                   currentUser?.role === "admin") && (
-                  <div className="flex justify-center gap-3 pb-6">
+                  <div className="flex gap-2">
                     <button
                       onClick={() =>
                         viewParticipants(event._id, event.title)
                       }
-                      className="px-6 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                      className="bg-blue-600 text-white px-4 py-2 rounded"
                     >
-                      View Participants
+                      Participants
                     </button>
                     <button
                       onClick={() => deleteEvent(event._id)}
-                      className="px-6 py-2 rounded-full bg-gradient-to-r from-pink-500 to-red-600 text-white"
+                      className="bg-red-600 text-white px-4 py-2 rounded"
                     >
                       Delete
                     </button>
                   </div>
                 )}
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* ➕ Floating Add Button */}
-      {(currentUser?.role === "alumni" || currentUser?.role === "admin") && (
-        <button
-          onClick={() => setShowPopup(true)}
-          className="fixed bottom-8 right-8 bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-3xl px-5 py-3 rounded-full shadow-2xl hover:scale-110"
+      {/* 🖼️ Full Image Preview */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+          onClick={() => setPreviewImage(null)}
         >
-          +
-        </button>
-      )}
-
-      {/* 👥 Participants Popup */}
-      {showParticipants && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
-            <h2 className="text-lg font-bold mb-4 text-center">
-              Participants – {selectedEventTitle}
-            </h2>
-
-            {participants.length === 0 ? (
-              <p className="text-gray-500 text-center">No participants yet.</p>
-            ) : (
-              <ul className="max-h-60 overflow-y-auto divide-y divide-gray-200">
-                {participants.map((p) => (
-                  <li key={p._id} className="py-3 text-sm text-gray-800">
-                    <p className="font-semibold text-blue-700">{p.username}</p>
-                    <p className="text-gray-600 text-xs">Email: {p.email}</p>
-                    <p className="text-gray-500 text-xs italic">
-                      Role: {p.role}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="mt-4 text-center flex justify-center gap-3">
-              {participants.length > 0 && (
-                <button
-                  onClick={downloadParticipantsExcel}
-                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm"
-                >
-                  Download Excel
-                </button>
-              )}
-              <button
-                onClick={() => setShowParticipants(false)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 🆕 Create Event Popup */}
-      {showPopup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg">
-            <h2 className="text-2xl font-semibold mb-4 text-gray-800 text-center">
-              Create New Event
-            </h2>
-
-            <input
-              type="text"
-              placeholder="Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full border border-gray-300 p-2 rounded mb-3"
-            />
-            <textarea
-              placeholder="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full border border-gray-300 p-2 rounded mb-3"
-            />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full border border-gray-300 p-2 rounded mb-3"
-            />
-            <input
-              type="number"
-              placeholder="Total Seats"
-              value={seats}
-              onChange={(e) => setSeats(e.target.value)}
-              className="w-full border border-gray-300 p-2 rounded mb-3"
-            />
-            <input
-              type="file"
-              onChange={(e) => setImage(e.target.files[0])}
-              className="w-full border border-gray-300 p-2 rounded mb-4"
-            />
-
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={createEvent}
-                className="px-6 py-2 rounded-full bg-gradient-to-r from-green-500 to-teal-500 text-white"
-              >
-                Create
-              </button>
-              <button
-                onClick={() => setShowPopup(false)}
-                className="px-6 py-2 rounded-full bg-gradient-to-r from-gray-400 to-gray-600 text-white"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <img
+            src={previewImage}
+            className="max-w-[90%] max-h-[90%] rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-5 right-6 text-white text-3xl"
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>

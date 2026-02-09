@@ -24,12 +24,15 @@ import emailChangeRoutes from './routes/emailChangeRoutes.js';
 import remindersRoutes from './routes/reminders.js'; 
 import donationRoutes from "./routes/donationRoutes.js";
 // import paymentRoutes from "./routes/paymentRoutes.js";
+import mentorRoutes from "./routes/mentor.js"; 
+
 
 dotenv.config();
 connectDB();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 
 const app = express();
 const server = http.createServer(app);
@@ -69,6 +72,8 @@ app.use("/api/reminders", remindersRoutes);
 app.use("/api/donation", donationRoutes);
 // app.use("/api/payment", paymentRoutes);
 app.use("/uploads", express.static("uploads")); 
+app.use("/api/mentors", mentorRoutes);
+
 
 // ✅ Socket.IO Events
 io.on("connection", (socket) => {
