@@ -26,6 +26,8 @@ export function MainFeed() {
   const [menuOpen, setMenuOpen] = useState(null);
   const [loading, setLoading] = useState(true);
   const [followingUsers, setFollowingUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
 
   const [showPopup, setShowPopup] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -169,6 +171,36 @@ export function MainFeed() {
     }
   };
 
+  const handleSearch = async (query) => {
+  setSearchQuery(query);
+
+  // If empty search → reload normal posts
+  if (!query.trim()) {
+    try {
+      const postsRes = await axios.get(
+        "http://localhost:5000/api/posts",
+        { withCredentials: true }
+      );
+      setPosts(postsRes.data);
+    } catch (err) {
+      console.error("Reload posts failed:", err);
+    }
+    return;
+  }
+
+  try {
+    const res = await axios.get(
+      `http://localhost:5000/api/posts/semantic-search?q=${query}`,
+      { withCredentials: true }
+    );
+
+    setPosts(res.data);
+  } catch (err) {
+    console.error("Search failed:", err);
+  }
+};
+
+
   const toggleComments = (postId) => {
     setShowComments((prev) => ({
       ...prev,
@@ -180,6 +212,64 @@ export function MainFeed() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+
+    {/* 🔎 Premium Search Bar */}
+<div className="mb-8 max-w-3x1 mx-auto">
+  <div className="relative group">
+
+    {/* Search Icon */}
+    <div className="absolute left-5 top-1/2 -translate-y-1/2 
+                    text-blue-400 group-focus-within:text-purple-500
+                    transition-colors duration-300">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M21 21l-4.35-4.35M16 10a6 6 0 11-12 0 6 6 0 0112 0z"
+        />
+      </svg>
+    </div>
+
+    <input
+      type="text"
+      placeholder="Search posts..."
+      value={searchQuery}
+      onChange={(e) => handleSearch(e.target.value)}
+      className="w-full pl-14 pr-14 py-3.5 rounded-full
+                 bg-white
+                 border border-gray-200
+                 text-sm text-gray-700 placeholder-gray-400
+                 shadow-sm
+                 transition-all duration-300 ease-in-out
+                 hover:shadow-md
+                 focus:outline-none
+                 focus:ring-2 focus:ring-purple-400/40
+                 focus:border-purple-400
+                 focus:shadow-lg"
+    />
+
+    {/* Clear Button */}
+    {searchQuery && (
+      <button
+        onClick={() => handleSearch("")}
+        className="absolute right-5 top-1/2 -translate-y-1/2
+                   text-purple-400 hover:text-purple-600
+                   hover:scale-110
+                   transition-all duration-200 text-lg"
+      >
+        ✕
+      </button>
+    )}
+  </div>
+</div>
+
+
       {(currentUser?.role === "alumni" ||
         currentUser?.role === "student" ||
         currentUser?.role === "admin") && (

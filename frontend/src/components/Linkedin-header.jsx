@@ -161,7 +161,8 @@ export function LinkedInHeader() {
             )}
 
             {/* Admin Export */}
-            {user?.role === "admin" && (
+            {["admin", "superadmin"].includes(user?.role) && (
+
               <Link to="/admin-data-export">
                 <Button
                   variant="ghost"

@@ -1,3 +1,4 @@
+import natural from "natural";
 import express from "express";
 import fs from "fs";
 import Post from "../models/Post.js";
@@ -8,6 +9,50 @@ import uploadOnCloudinary from "../uploadconfig.js";
 import { createNotification } from "../utils/createNotification.js";
 
 const router = express.Router();
+
+
+router.get("/semantic-search", authMiddleware, async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || q.trim() === "") {
+      return res.json([]);
+    }
+
+    // Fetch all posts
+    const posts = await Post.find().populate("author");
+
+    const tfidf = new natural.TfIdf();
+
+    // Add each post content to TF-IDF
+    posts.forEach((post) => {
+      tfidf.addDocument(post.content || "");
+    });
+
+    const scoredPosts = [];
+
+    tfidf.tfidfs(q, (i, measure) => {
+      scoredPosts.push({
+        post: posts[i],
+        score: measure,
+      });
+    });
+
+    // Sort by highest score first
+    scoredPosts.sort((a, b) => b.score - a.score);
+
+    // Remove very low relevance results
+    const filteredPosts = scoredPosts
+      .filter((item) => item.score > 0.01)
+      .map((item) => item.post);
+
+    res.json(filteredPosts);
+
+  } catch (error) {
+    console.error("Semantic Search Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 /* -----------------------------------------------------------
    📌 GET all posts

@@ -46,7 +46,10 @@ export default function RegisterForm({ onToggle }) {
     e.preventDefault();
     try {
       const payload = { ...formData };
-      if (formData.role === "admin") delete payload.batch;
+      if (formData.role === "admin" || formData.role === "superadmin") {
+  delete payload.batch;
+}
+
 
       const res = await axios.post(
         "http://localhost:5000/api/auth/register",
@@ -170,6 +173,7 @@ export default function RegisterForm({ onToggle }) {
                   <SelectItem value="student">Student</SelectItem>
                   <SelectItem value="alumni">Alumni</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="superadmin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

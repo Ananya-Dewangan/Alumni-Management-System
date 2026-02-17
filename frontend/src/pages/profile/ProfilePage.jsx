@@ -636,6 +636,11 @@ const sendEmailChangeRequest = async () => {
                   {/* skills */}
                   <div className="mt-4">
                     <label className="block text-sm text-gray-600 mb-2">Skills</label>
+
+                    <p className="text-xs text-gray-400 italic mb-2">
+  Highlight your skills to enhance collaboration & mentorship connections.
+</p>
+
                     <div className="flex flex-wrap gap-2">
                       {profile.skills.map((s, i) => (
                         <div key={i} className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-500 text-white px-3 py-1 rounded-full text-sm hover:scale-105 transform transition">
@@ -1011,7 +1016,9 @@ const sendEmailChangeRequest = async () => {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
                 <div className="text-sm text-gray-600">Role</div>
                 <div className="text-md font-semibold text-gray-800 capitalize">{profile.role || "—"}</div>
-                <div className="mt-3 text-sm text-gray-600">Skills</div>
+                <div className="mt-3 text-sm text-gray-600">Skills
+                
+                </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {profile.skills.slice(0, 6).map((s, i) => (
                     <span key={i} className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded-full">{s}</span>

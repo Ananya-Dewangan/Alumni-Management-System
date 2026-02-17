@@ -88,7 +88,7 @@ export const adminAuthMiddleware = async (req, res, next) => {
         .json({ success: false, message: "User not found" });
     }
 
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "superadmin") {
       return res
         .status(403)
         .json({ success: false, message: "Access denied: Admins only" });
