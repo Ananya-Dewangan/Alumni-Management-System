@@ -3,7 +3,7 @@ import express from "express";
 import Event from "../models/Event.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import upload from "../middleware/multerMiddleware.js";
-import uploadOnCloudinary from "../uploadconfig.js";
+import uploadOnCloudinary from "../uploadConfig.js";
 import fs from "fs";
 import User from "../models/User.js";
 import { createNotification } from "../utils/createNotification.js";
