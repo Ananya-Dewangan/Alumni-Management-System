@@ -53,9 +53,7 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
-app.get("/", (req, res) => {
-  res.send("🚀 CampusSetu Backend is Running Successfully!");
-});
+
 
 // ✅ Serve uploaded images statically
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
