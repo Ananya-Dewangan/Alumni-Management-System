@@ -21,7 +21,7 @@ export default function AdminDataExport() {
   const [data, setData] = useState(storedData || []);
   const [loading, setLoading] = useState(false);
 
-  const baseURL = "http://localhost:5000/api/admin";
+  const baseURL = "/api/admin";
 
   const courseOptions = ["B.Tech", "M.Tech", "MBA", "PhD"];
   const departmentOptions = {

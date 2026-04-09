@@ -24,7 +24,7 @@ export default function DonationDetails() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/auth/me", {
+        const res = await axios.get("/api/auth/me", {
           withCredentials: true
         });
         setUser(res.data);
@@ -49,7 +49,7 @@ export default function DonationDetails() {
         setLoading(true);
         
         // 1. Fetch single campaign details directly
-        const requestRes = await axios.get(`http://localhost:5000/api/donation/requests`, {
+        const requestRes = await axios.get(`/api/donation/requests`, {
         withCredentials: true
         });
         
@@ -57,7 +57,7 @@ export default function DonationDetails() {
         setRequest(campaign);
 
         // 2. Fetch ALL donations for this campaign (admin endpoint)
-        const donationsRes = await axios.get(`http://localhost:5000/api/donation/admin/${id}/donations`, {
+        const donationsRes = await axios.get(`/api/donation/admin/${id}/donations`, {
         withCredentials: true
         });
         
@@ -66,7 +66,7 @@ export default function DonationDetails() {
         console.error("Error fetching details:", err);
         // Fallback to /my if admin endpoint fails
         try {
-        const fallbackRes = await axios.get(`http://localhost:5000/api/donation/my`, {
+        const fallbackRes = await axios.get(`/api/donation/my`, {
             withCredentials: true
         });
         setDonations(fallbackRes.data.donations?.filter(d => d.requestId?._id === id) || []);
@@ -85,7 +85,7 @@ export default function DonationDetails() {
     
     try {
       setClosing(true);
-      await axios.patch(`http://localhost:5000/api/donation/request/${id}/close`, {}, {
+      await axios.patch(`/api/donation/request/${id}/close`, {}, {
         withCredentials: true
       });
       setRequest(prev => ({ ...prev, status: 'closed' }));
@@ -147,7 +147,7 @@ export default function DonationDetails() {
             <div className="flex-1 min-w-0">
               {request.images?.[0] && (
                 <img
-                  src={`http://localhost:5000${request.images[0]}`}
+                  src={`${request.images[0]}`}
                   className="w-full lg:w-96 h-80 object-cover rounded-2xl shadow-2xl mb-6"
                   alt={request.title}
                 />
@@ -159,7 +159,7 @@ export default function DonationDetails() {
                   {request.images.slice(1).map((img, idx) => (
                     <img
                       key={idx}
-                      src={`http://localhost:5000${img}`}
+                      src={`${img}`}
                       className="w-24 h-24 object-cover rounded-xl flex-shrink-0 border-2 border-purple-200"
                       alt=""
                     />
@@ -285,7 +285,7 @@ export default function DonationDetails() {
                                 size="sm"
                                 className="w-full text-left justify-start h-10 text-sm hover:bg-green-50 border-b border-gray-100"
                                 onClick={() => {
-                                    window.open(`http://localhost:5000/api/donation/admin/receipt/${d._id}/view`, '_blank', 'width=1000,height=800');
+                                    window.open(`/api/donation/admin/receipt/${d._id}/view`, '_blank', 'width=1000,height=800');
                                 }}
                                 >
                                 <span className="flex items-center gap-2">
@@ -300,7 +300,7 @@ export default function DonationDetails() {
                                 className="w-full text-left justify-start h-10 text-sm hover:bg-emerald-50"
                                 onClick={() => {
                                     const link = document.createElement('a');
-                                    link.href = `http://localhost:5000/api/donation/admin/receipt/${d._id}`;
+                                    link.href = `/api/donation/admin/receipt/${d._id}`;
                                     link.download = `receipt-${d._id.slice(-8)}.pdf`;
                                     document.body.appendChild(link);
                                     link.click();

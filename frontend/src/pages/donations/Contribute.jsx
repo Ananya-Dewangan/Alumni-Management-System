@@ -22,7 +22,7 @@ export default function Contribute() {
   // Fetch user + campaigns
   useEffect(() => {
     axios
-      .get("http://localhost:5000/api/auth/me")
+      .get("/api/auth/me")
       .then((res) => setUser(res.data))
       .catch((err) => console.error("User fetch error", err));
 
@@ -32,7 +32,7 @@ export default function Contribute() {
 
   async function fetchMyDonations() {
     try {
-      const res = await axios.get("http://localhost:5000/api/donation/my");
+      const res = await axios.get("/api/donation/my");
       setDonations(res.data.donations || []);
     } catch (err) {
       console.error("My donations fetch error:", err);
@@ -41,7 +41,7 @@ export default function Contribute() {
 
   async function fetchCampaigns() {
     try {
-      const res = await axios.get("http://localhost:5000/api/donation/requests");
+      const res = await axios.get("/api/donation/requests");
       const data = res.data?.requests || res.data || [];
       setCampaigns(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -54,7 +54,7 @@ export default function Contribute() {
   // Create order (cookies sent automatically)
   async function createOrder(amount, requestId) {
     const res = await axios.post(
-      "http://localhost:5000/api/donation/payment/order",
+      "/api/donation/payment/order",
       { amount, requestId }
     );
     return res.data;
@@ -62,7 +62,7 @@ export default function Contribute() {
 
   // Verify payment
   async function verifyPayment(payload) {
-    return axios.post("http://localhost:5000/api/donation/payment/verify", payload);
+    return axios.post("/api/donation/payment/verify", payload);
   }
 
   function openPhonepeLike(amount, requestId) {
@@ -109,7 +109,7 @@ export default function Contribute() {
   }
 
   const downloadReceipt = (id) => {
-    window.open(`http://localhost:5000/api/donation/receipt/${id}`, "_blank");
+    window.open(`/api/donation/receipt/${id}`, "_blank");
   };
 
   if (loading)
@@ -202,7 +202,7 @@ export default function Contribute() {
                                 src={
                                   c.images[0].startsWith("http")
                                     ? c.images[0]
-                                    : `http://localhost:5000${c.images[0]}`
+                                    : `${c.images[0]}`
                                 }
                                 alt="campaign"
                                 className="w-full h-40 object-cover transition-transform duration-500 group-hover:scale-105"

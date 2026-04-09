@@ -35,7 +35,7 @@ export default function AdminRequests() {
   async function fetchRequests() {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/donation/requests",
+        "/api/donation/requests",
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -67,7 +67,7 @@ export default function AdminRequests() {
 
       form.images.forEach((file) => fd.append("images", file));
 
-      await axios.post("http://localhost:5000/api/donation/request", fd, {
+      await axios.post("/api/donation/request", fd, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "multipart/form-data",
@@ -96,7 +96,7 @@ export default function AdminRequests() {
   async function closeRequest(id) {
     try {
       await axios.patch(
-        `http://localhost:5000/api/donation/request/${id}/close`,
+        `/api/donation/request/${id}/close`,
         {},
         {
           headers: {
@@ -119,7 +119,7 @@ export default function AdminRequests() {
 
     try {
       await axios.delete(
-        `http://localhost:5000/api/donation/request/${id}`,
+        `/api/donation/request/${id}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -324,7 +324,7 @@ export default function AdminRequests() {
                       {r.images.map((img, idx) => (
                         <img
                           key={idx}
-                          src={`http://localhost:5000${img}`}
+                          src={`${img}`}
                           className="w-28 h-28 rounded-xl object-cover border"
                           alt=""
                         />

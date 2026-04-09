@@ -42,7 +42,7 @@ export default function EmailChangeRequest() {
       console.log("Submitting payload:", payload);
 
       const res = await axios.post(
-        "http://localhost:5000/api/email-change-requests",
+        "/api/email-change-requests",
         payload,
         { 
           withCredentials: true,

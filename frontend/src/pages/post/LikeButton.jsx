@@ -5,7 +5,7 @@ const LikeButton = ({ post, setPosts, likeStatus, setLikeStatus }) => {
   const handleLike = async () => {
     try {
       const res = await axios.put(
-        `http://localhost:5000/api/posts/like/${post._id}`,
+        `/api/posts/like/${post._id}`,
         {},
         { withCredentials: true }
       );

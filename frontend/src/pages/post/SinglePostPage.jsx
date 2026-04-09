@@ -20,7 +20,7 @@ export default function SinglePost() {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const me = await axios.get("http://localhost:5000/api/auth/me", {
+        const me = await axios.get("/api/auth/me", {
           withCredentials: true,
         });
         setCurrentUser(me.data);
@@ -28,7 +28,7 @@ export default function SinglePost() {
         let postRes;
         try {
           postRes = await axios.get(
-            `http://localhost:5000/api/posts/${id}`,
+            `/api/posts/${id}`,
             { withCredentials: true }
           );
         } catch (err) {
@@ -40,7 +40,7 @@ export default function SinglePost() {
         }
 
         const followRes = await axios.get(
-          "http://localhost:5000/api/follow/following",
+          "/api/follow/following",
           { withCredentials: true }
         );
 
@@ -61,7 +61,7 @@ export default function SinglePost() {
       const isFollowing = followingUsers.includes(userId);
       const route = isFollowing ? "unfollow" : "follow";
       await axios.post(
-        `http://localhost:5000/api/follow/${route}/${userId}`,
+        `/api/follow/${route}/${userId}`,
         {},
         { withCredentials: true }
       );
@@ -76,7 +76,7 @@ export default function SinglePost() {
   const handleRepost = async () => {
     try {
       await axios.post(
-        `http://localhost:5000/api/posts/repost/${post._id}`,
+        `/api/posts/repost/${post._id}`,
         {},
         { withCredentials: true }
       );

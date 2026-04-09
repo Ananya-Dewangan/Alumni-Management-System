@@ -52,7 +52,7 @@ export default function RegisterForm({ onToggle }) {
 
 
       const res = await axios.post(
-        "http://localhost:5000/api/auth/register",
+        "/api/auth/register",
         payload,
         { withCredentials: true }
       );

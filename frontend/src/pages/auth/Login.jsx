@@ -20,7 +20,7 @@ export default function LoginForm({ onToggle }) {
     setError("");
     axios
       .post(
-        "http://localhost:5000/api/auth/login",
+        "/api/auth/login",
         { identifier: form.identifier, password: form.password },
         { withCredentials: true }
       )

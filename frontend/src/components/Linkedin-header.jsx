@@ -22,7 +22,7 @@ axios.defaults.headers.common["Authorization"] = `Bearer ${localStorage.getItem(
   "token"
 )}`;
 
-const socket = io("http://localhost:5000", { withCredentials: true });
+const socket = io("", { withCredentials: true });
 
 export function LinkedInHeader() {
   const [notifCount, setNotifCount] = useState(0);
@@ -34,7 +34,7 @@ export function LinkedInHeader() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/auth/me");
+        const res = await axios.get("/api/auth/me");
         setUser(res.data);
       } catch (err) {
         console.error("Error fetching user:", err);
@@ -47,7 +47,7 @@ export function LinkedInHeader() {
   const fetchNotifCount = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/notifications/count"
+        "/api/notifications/count"
       );
       setNotifCount(res.data.count || 0);
     } catch (err) {
@@ -71,7 +71,7 @@ export function LinkedInHeader() {
   // Logout
   const handleLogout = async () => {
     try {
-      await axios.post("http://localhost:5000/api/auth/logout");
+      await axios.post("/api/auth/logout");
       localStorage.removeItem("token");
       navigate("/auth", { replace: true });
     } catch (err) {

@@ -23,7 +23,7 @@ export default function MyNetwork() {
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/auth/me", {
+        const res = await axios.get("/api/auth/me", {
           withCredentials: true,
         });
         setCurrentUser(res.data);
@@ -40,7 +40,7 @@ export default function MyNetwork() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/follow/all", {
+        const res = await axios.get("/api/follow/all", {
           withCredentials: true,
         });
         setAllUsers(res.data.users || []);
@@ -60,7 +60,7 @@ export default function MyNetwork() {
       if (currentUser?.role === "student") {
         try {
           const res = await axios.get(
-            `http://localhost:5000/api/mentors/top-mentors/${currentUser._id}`,
+            `/api/mentors/top-mentors/${currentUser._id}`,
             { withCredentials: true }
           );
           setTopMentors(res.data);

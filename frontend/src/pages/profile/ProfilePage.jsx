@@ -112,7 +112,7 @@ const sendEmailChangeRequest = async () => {
   try {
     if (!requestedEmail) return alert("Please provide the new email");
     await axios.post(
-      "http://localhost:5000/api/email-change-requests",
+      "/api/email-change-requests",
       { requestedEmail, reason: requestReason },
       { withCredentials: true }
     );
@@ -231,7 +231,7 @@ const sendEmailChangeRequest = async () => {
     formData.append("photo", file);
     try {
       setLoading(true);
-      const res = await axios.put("http://localhost:5000/api/profile/photo", formData, {
+      const res = await axios.put("/api/profile/photo", formData, {
         withCredentials: true,
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -260,7 +260,7 @@ const sendEmailChangeRequest = async () => {
   const handleRemovePhoto = async () => {
     try {
       setLoading(true);
-      const res = await axios.delete("http://localhost:5000/api/profile/photo", {
+      const res = await axios.delete("/api/profile/photo", {
         withCredentials: true,
       });
 
@@ -294,7 +294,7 @@ const sendEmailChangeRequest = async () => {
       }
 
       const res = await axios.put(
-        "http://localhost:5000/api/profile/details",
+        "/api/profile/details",
         payload,
         { withCredentials: true }
       );
@@ -322,7 +322,7 @@ const sendEmailChangeRequest = async () => {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:5000/api/profile", {
+        const res = await axios.get("/api/profile", {
           withCredentials: true,
         });
 
@@ -490,7 +490,7 @@ const sendEmailChangeRequest = async () => {
     try {
       setLoading(true);
       await axios.put(
-        "http://localhost:5000/api/profile/experience",
+        "/api/profile/experience",
         { experience: profile.experience },
         { withCredentials: true }
       );

@@ -13,7 +13,7 @@ export default function CommentsSection({ postId }) {
   const fetchComments = async (pageNum = 1) => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/posts/comment/${postId}?page=${pageNum}&limit=5`,
+        `/api/posts/comment/${postId}?page=${pageNum}&limit=5`,
         { withCredentials: true }
       );
 
@@ -39,7 +39,7 @@ export default function CommentsSection({ postId }) {
     if (!commentText.trim()) return;
     try {
       await axios.post(
-        `http://localhost:5000/api/posts/comment/${postId}`,
+        `/api/posts/comment/${postId}`,
         { text: commentText },
         { withCredentials: true }
       );

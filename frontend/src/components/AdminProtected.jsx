@@ -9,7 +9,7 @@ export default function AdminProtected({ children }) {
   React.useEffect(() => {
     const checkAdmin = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/auth/me", {
+        const res = await axios.get("/api/auth/me", {
           withCredentials: true
         });
         setUser(res.data);

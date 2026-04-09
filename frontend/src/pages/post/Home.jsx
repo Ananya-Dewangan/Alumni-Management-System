@@ -15,7 +15,7 @@ function Home() {
     let mounted = true;
     (async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/auth/me", { withCredentials: true });
+        const res = await axios.get("/api/auth/me", { withCredentials: true });
         if (!mounted) return;
         setCurrentUser(res.data);
       } catch (err) {
@@ -36,7 +36,7 @@ function Home() {
     const fetchRequests = async () => {
       setRequestsLoading(true);
       try {
-        const res = await axios.get("http://localhost:5000/api/email-change-requests", { withCredentials: true });
+        const res = await axios.get("/api/email-change-requests", { withCredentials: true });
 
         if (!mounted) return;
 
@@ -65,7 +65,7 @@ function Home() {
   const handleAction = async (id, action) => {
     try {
       await axios.put(
-        `http://localhost:5000/api/email-change-requests/${id}`,
+        `/api/email-change-requests/${id}`,
         { action },
         { withCredentials: true }
       );

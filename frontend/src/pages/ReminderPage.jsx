@@ -14,7 +14,7 @@ export default function ReminderPage() {
   useEffect(() => {
     const fetchReminders = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/reminders/${date}`);
+        const res = await axios.get(`/api/reminders/${date}`);
         setReminders(res.data);
       } catch (err) {
         console.error("Failed to fetch reminders:", err);

@@ -39,7 +39,7 @@ export default function EditPostModal({ post, onClose, onUpdate }) {
       if (imageFile) formData.append("image", imageFile);
 
       const res = await axios.put(
-        `http://localhost:5000/api/posts/${post._id}`,
+        `/api/posts/${post._id}`,
         formData,
         {
           withCredentials: true,

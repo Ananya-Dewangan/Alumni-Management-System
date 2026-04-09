@@ -32,7 +32,7 @@ export function ProfileSidebar() {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:5000/api/profile", {
+        const res = await axios.get("/api/profile", {
           withCredentials: true,
         });
 
